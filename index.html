@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -102,6 +101,13 @@
           <button id="mic-stop" class="secondary" type="button" disabled>
             Stop microphone
           </button>
+
+          <div class="mic-timer" aria-label="Microphone recording duration">
+            <span class="mic-timer-label">RECORDING TIME</span>
+            <span id="mic-timer" class="mic-timer-value" role="timer">
+              00:00
+            </span>
+          </div>
         </div>
 
         <p class="notice" id="mic-status" role="status">
