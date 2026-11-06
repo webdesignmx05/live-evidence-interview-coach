@@ -1,5 +1,6 @@
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
 
   if (req.method !== 'POST') {
     return res.status(405).json({
@@ -9,6 +10,7 @@ export default async function handler(req, res) {
 
   return res.status(503).json({
     success: false,
-    error: 'AI evaluation is not publicly enabled yet.'
+    status: 'connection-test',
+    error: 'AI evaluation is not enabled yet.'
   });
 }
