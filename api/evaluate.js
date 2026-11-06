@@ -21,7 +21,9 @@ const AUDIENCE =
 const DAILY_OWNER_LIMIT = 200;
 const MAX_REQUEST_BYTES = 8192;
 
-function validOwnerKey(provided, expected) {
+const COOKIE_NAME = 'leic_session';
+
+function safeEqual(provided, expected) {
   if (
     typeof provided !== 'string' ||
     typeof expected !== 'string' ||
@@ -30,49 +32,79 @@ function validOwnerKey(provided, expected) {
     return false;
   }
 
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
 
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function validOwnerKey(provided) {
+  return safeEqual(provided, process.env.OWNER_API_KEY);
+}
+
 function validOwnerSession(req) {
   const secret = process.env.SESSION_SECRET;
-  if (!secret) return false;
 
-  const cookie = (req.headers.cookie || '')
+  if (typeof secret !== 'string' || !secret) {
+    return false;
+  }
+
+  const cookieHeader = req.headers.cookie;
+
+  if (typeof cookieHeader !== 'string') {
+    return false;
+  }
+
+  const cookie = cookieHeader
     .split(';')
     .map(part => part.trim())
-    .find(part => part.startsWith('leic_session='));
+    .find(part => part.startsWith(`${COOKIE_NAME}=`));
 
-  if (!cookie) return false;
+  if (!cookie) {
+    return false;
+  }
 
-  const session = cookie.slice('leic_session='.length);
+  const session = cookie.slice(COOKIE_NAME.length + 1);
+
   const match = /^v1\.(\d+)\.([A-Za-z0-9_-]+)$/.exec(session);
 
-  if (!match) return false;
+  if (!match) {
+    return false;
+  }
 
   const expiresAt = Number(match[1]);
+  const now = Math.floor(Date.now() / 1000);
 
   if (
     !Number.isSafeInteger(expiresAt) ||
-    expiresAt <= Math.floor(Date.now() / 1000)
+    expiresAt <= now ||
+    expiresAt > now + 28800
   ) {
     return false;
   }
 
   const payload = `v1.${match[1]}`;
 
-  const expected = createHmac('sha256', secret)
+  const expectedSignature = createHmac('sha256', secret)
     .update(payload)
     .digest('base64url');
 
-  const a = Buffer.from(match[2]);
-  const b = Buffer.from(expected);
-
-  return a.length === b.length && timingSafeEqual(a, b);
+  return safeEqual(match[2], expectedSignature);
 }
 
+function validRequestOrigin(req) {
+  const origin = req.headers.origin;
+  const host = req.headers.host;
+
+  if (
+    typeof origin !== 'string' ||
+    typeof host !== 'string'
+  ) {
+    return false;
+  }
+
+  return origin === `https://${host}`;
+}
 
 function getRedis() {
   const url = process.env.KV_REST_API_URL;
@@ -87,11 +119,11 @@ function getRedis() {
 
 async function checkOwnerAllowance() {
   const redis = getRedis();
+
   const today = new Date().toISOString().slice(0, 10);
+
   const key = `interview-coach:owner-evaluations:${today}`;
 
-  // Atomic increment and expiration.
-  // Both operations execute together on the Redis server.
   const results = await redis.eval(
     `local count = redis.call('INCR', KEYS[1])
      if count == 1 then
@@ -182,15 +214,15 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+
     return res.status(405).json({
       success: false,
       error: 'Method not allowed.'
     });
   }
 
-  // Owner authentication is required.
-  // Accept either the existing private API key or
-  // a signed owner browser session.
+  // Require the configured owner credential.
   if (!process.env.OWNER_API_KEY) {
     console.error('OWNER_API_KEY is not configured.');
 
@@ -200,11 +232,12 @@ export default async function handler(req, res) {
     });
   }
 
+  // Existing PowerShell/API-key authentication.
   const authenticatedByKey = validOwnerKey(
-    req.headers['x-owner-key'],
-    process.env.OWNER_API_KEY
+    req.headers['x-owner-key']
   );
 
+  // Browser authentication using the signed login cookie.
   const authenticatedBySession = validOwnerSession(req);
 
   if (!authenticatedByKey && !authenticatedBySession) {
@@ -214,20 +247,20 @@ export default async function handler(req, res) {
     });
   }
 
-  // Cookie-authenticated requests require a matching origin.
-  // This protects the browser session against cross-site requests.
-  if (authenticatedBySession && !authenticatedByKey) {
-    const expectedOrigin = `https://${req.headers.host}`;
-
-    if (req.headers.origin !== expectedOrigin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Invalid request origin.'
-      });
-    }
+  // Require same-origin requests when using browser sessions.
+  // API-key authentication remains available for PowerShell.
+  if (
+    !authenticatedByKey &&
+    authenticatedBySession &&
+    !validRequestOrigin(req)
+  ) {
+    return res.status(403).json({
+      success: false,
+      error: 'Invalid request origin.'
+    });
   }
 
-  // Validate the incoming request before calling Redis or AI.
+  // Validate the incoming request before Redis or Gemini.
   const contentLength = Number(req.headers['content-length']);
 
   if (
@@ -269,7 +302,7 @@ export default async function handler(req, res) {
     });
   }
 
-  // Fail closed if the shared usage counter is unavailable.
+  // Redis enforces the shared daily evaluation allowance.
   let usage;
 
   try {
@@ -293,6 +326,7 @@ export default async function handler(req, res) {
     });
   }
 
+  // Authenticate to private Cloud Run using Vercel OIDC.
   try {
     const idToken = await getCloudRunIdToken();
 
@@ -321,7 +355,8 @@ export default async function handler(req, res) {
         stage: 'cloud-run-evaluation',
         cloudRunStatus: cloudRun.status,
         error:
-          result?.error || 'AI evaluation service returned an error.'
+          result?.error ||
+          'AI evaluation service returned an error.'
       });
     }
 
@@ -344,7 +379,10 @@ export default async function handler(req, res) {
       usage: {
         count: usage.count,
         limit: usage.limit,
-        remaining: Math.max(0, usage.limit - usage.count)
+        remaining: Math.max(
+          0,
+          usage.limit - usage.count
+        )
       }
     });
 
