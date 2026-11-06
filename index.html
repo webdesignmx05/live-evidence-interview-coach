@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -9,13 +10,14 @@
 </head>
 <body>
   <main class="shell">
-
     <header class="masthead">
       <div class="brand">
         <span class="mark">LE</span>
         <span>Live Evidence <strong>Interview Coach</strong></span>
       </div>
-      <span class="status" id="app-status">Owner access · AI enabled</span>
+      <span class="status" id="app-status">
+        Owner access · Sign in required
+      </span>
     </header>
 
     <section class="hero">
@@ -40,7 +42,6 @@
           type="password"
           autocomplete="off"
           placeholder="Enter your private owner key"
-          style="width:100%;box-sizing:border-box;padding:12px;margin:8px 0 12px;"
         />
         <div class="actions">
           <button id="login" type="button">Sign in</button>
@@ -58,16 +59,14 @@
 
       <p class="notice" id="auth-notice" role="status">
         Sign in to enable live Gemini evaluations.
-        Your owner key is not stored in the page.
       </p>
     </section>
 
     <div class="layout">
-
       <section class="panel" aria-labelledby="practice-title">
         <div class="panel-head">
           <h2 id="practice-title">Practice your answer</h2>
-          <span class="pill">Typed answers · v1</span>
+          <span class="pill">Voice + typed answers · v1</span>
         </div>
 
         <label for="question">Interview question</label>
@@ -88,23 +87,34 @@
           id="answer"
           rows="10"
           maxlength="2000"
-          placeholder="Write your answer naturally. Focus on what you actually did and can explain."
+          placeholder="Type your answer or use the microphone. Review your transcript before evaluating."
         ></textarea>
 
         <div class="field-note">
-          <span>Concise, accurate answers are welcome.</span>
+          <span>Review and correct speech recognition errors.</span>
           <span id="answer-count">0 / 2,000</span>
         </div>
+
+        <div class="actions" aria-label="Microphone controls">
+          <button id="mic-start" class="secondary" type="button" disabled>
+            Start microphone
+          </button>
+          <button id="mic-stop" class="secondary" type="button" disabled>
+            Stop microphone
+          </button>
+        </div>
+
+        <p class="notice" id="mic-status" role="status">
+          Microphone setup pending. Typed answers remain available.
+        </p>
 
         <div class="actions">
           <button id="evaluate" type="button" disabled>
             Evaluate with AI
           </button>
-
           <button id="preview" class="secondary" type="button">
             Preview sample
           </button>
-
           <button id="clear" class="secondary" type="button">
             Clear
           </button>
@@ -134,7 +144,9 @@
         <div id="report" hidden>
           <div class="score-top">
             <div>
-              <p class="eyebrow" id="score-label">EVALUATION SCORE</p>
+              <p class="eyebrow" id="score-label">
+                EVALUATION SCORE
+              </p>
               <div class="big-score">
                 <span id="total">0</span>
                 <small>/100</small>
@@ -142,7 +154,7 @@
             </div>
 
             <div class="question-type">
-              Question category<br />
+              Question category
               <strong id="category">—</strong>
             </div>
           </div>
@@ -163,16 +175,14 @@
           </p>
         </div>
       </section>
-
     </div>
 
     <footer>
       Live Evidence Interview Coach ·
       Private owner AI evaluations ·
-      No microphone access ·
+      Microphone transcription requires browser permission ·
       AI requests may incur usage charges
     </footer>
-
   </main>
 
   <script src="script.js" defer></script>
