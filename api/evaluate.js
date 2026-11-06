@@ -8,6 +8,9 @@ const PROVIDER_ID = 'vercel';
 const SERVICE_ACCOUNT =
   'vercel-interview-coach-invoker@live-evidence-interview-coach.iam.gserviceaccount.com';
 
+const CLOUD_RUN_URL =
+  'https://interview-coach-api-796597994750.us-east1.run.app';
+
 const AUDIENCE =
   `//iam.googleapis.com/projects/${PROJECT_NUMBER}` +
   `/locations/global/workloadIdentityPools/${POOL_ID}` +
@@ -23,10 +26,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Step 1: Obtain the Vercel OIDC identity token.
+    // 1. Obtain Vercel's OIDC identity token.
     const oidcToken = await getVercelOidcToken();
 
-    // Step 2: Exchange the Vercel token for a Google access token.
+    // 2. Exchange the Vercel token with Google STS.
     const exchange = await fetch(
       'https://sts.googleapis.com/v1/token',
       {
@@ -51,23 +54,20 @@ export default async function handler(req, res) {
 
     if (!exchange.ok) {
       const details = await exchange.json().catch(() => ({}));
-
       console.error('Google STS exchange failed:', details);
 
       return res.status(502).json({
         success: false,
         stage: 'google-token-exchange',
-        error:
-          details.error || 'Google Cloud authentication failed.',
+        error: details.error || 'Google Cloud authentication failed.',
         description:
-          details.error_description ||
-          'No additional details provided.'
+          details.error_description || 'No additional details provided.'
       });
     }
 
     const tokenData = await exchange.json();
 
-    // Step 3: Test impersonation of the dedicated service account.
+    // 3. Verify service account impersonation.
     const impersonation = await fetch(
       `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SERVICE_ACCOUNT}:generateAccessToken`,
       {
@@ -87,33 +87,89 @@ export default async function handler(req, res) {
 
     if (!impersonation.ok) {
       const details = await impersonation.json().catch(() => ({}));
-
       console.error('Service account impersonation failed:', details);
 
       return res.status(502).json({
         success: false,
         stage: 'service-account-impersonation',
         error:
-          details.error?.message ||
-          'Service account impersonation failed.'
+          details.error?.message || 'Service account impersonation failed.'
       });
     }
 
-    // Impersonation succeeded, but AI evaluation stays disabled.
+    // 4. Generate a Google-signed ID token for private Cloud Run.
+    const identity = await fetch(
+      `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SERVICE_ACCOUNT}:generateIdToken`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          audience: CLOUD_RUN_URL,
+          includeEmail: true
+        })
+      }
+    );
+
+    if (!identity.ok) {
+      const details = await identity.json().catch(() => ({}));
+      console.error('Cloud Run ID token generation failed:', details);
+
+      return res.status(502).json({
+        success: false,
+        stage: 'cloud-run-id-token',
+        error:
+          details.error?.message || 'Cloud Run ID token generation failed.'
+      });
+    }
+
+    const identityData = await identity.json();
+
+    // 5. Call private Cloud Run with the signed ID token.
+    // A GET request is used only to test authenticated access.
+    const cloudRun = await fetch(CLOUD_RUN_URL, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${identityData.token}`
+      }
+    });
+
+    const responseText = await cloudRun.text();
+
+    // Cloud Run may return 405 if its handler only accepts POST.
+    // That still confirms the request reached the application.
+    if (cloudRun.status === 401 || cloudRun.status === 403) {
+      return res.status(502).json({
+        success: false,
+        stage: 'cloud-run-invocation',
+        cloudRunStatus: cloudRun.status,
+        error: 'Private Cloud Run rejected the authenticated request.'
+      });
+    }
+
+    console.log('Cloud Run connection test:', {
+      status: cloudRun.status,
+      responseLength: responseText.length
+    });
+
+    // AI evaluation remains disabled in the public endpoint.
     return res.status(503).json({
       success: false,
-      stage: 'service-account-impersonation',
+      stage: 'cloud-run-connection-test',
       authenticated: true,
+      cloudRunStatus: cloudRun.status,
       message:
-        'Service account impersonation succeeded. AI evaluation remains disabled.'
+        'Private Cloud Run connection test completed. Public AI evaluation remains disabled.'
     });
 
   } catch (error) {
-    console.error('Authentication error:', error.message);
+    console.error('Authentication or Cloud Run connection error:', error);
 
     return res.status(502).json({
       success: false,
-      error: 'Authentication setup failed.'
+      error: 'Backend connection test failed.'
     });
   }
 }
