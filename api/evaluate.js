@@ -18,7 +18,8 @@ const AUDIENCE =
   `/locations/global/workloadIdentityPools/${POOL_ID}` +
   `/providers/${PROVIDER_ID}`;
 
-const DAILY_TEST_LIMIT = 200;
+const DAILY_OWNER_LIMIT = 200;
+const MAX_REQUEST_BYTES = 8192;
 
 function validOwnerKey(provided, expected) {
   if (
@@ -40,31 +41,103 @@ function getRedis() {
   const token = process.env.KV_REST_API_TOKEN;
 
   if (!url || !token) {
-    throw new Error('Redis environment variables are missing.');
+    throw new Error('Redis configuration is missing.');
   }
 
   return new Redis({ url, token });
 }
 
-async function checkDailyTestLimit() {
+async function checkOwnerAllowance() {
   const redis = getRedis();
-
   const today = new Date().toISOString().slice(0, 10);
-  const key = `interview-coach:connection-test:${today}`;
+  const key = `interview-coach:owner-evaluations:${today}`;
 
   // Atomic increment and expiration.
-  // Only authenticated requests reach this point.
-  const count = await redis.incr(key);
+  // Both operations execute together on the Redis server.
+  const results = await redis.eval(
+    `local count = redis.call('INCR', KEYS[1])
+     if count == 1 then
+       redis.call('EXPIRE', KEYS[1], 172800)
+     end
+     return count`,
+    [key],
+    []
+  );
 
-  if (count === 1) {
-    await redis.expire(key, 172800);
+  const count = Number(results);
+
+  if (!Number.isSafeInteger(count) || count < 1) {
+    throw new Error('Invalid Redis counter result.');
   }
 
   return {
-    allowed: count <= DAILY_TEST_LIMIT,
+    allowed: count <= DAILY_OWNER_LIMIT,
     count,
-    limit: DAILY_TEST_LIMIT
+    limit: DAILY_OWNER_LIMIT
   };
+}
+
+async function getCloudRunIdToken() {
+  const oidcToken = await getVercelOidcToken();
+
+  const exchange = await fetch(
+    'https://sts.googleapis.com/v1/token',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        audience: AUDIENCE,
+        grantType:
+          'urn:ietf:params:oauth:grant-type:token-exchange',
+        requestedTokenType:
+          'urn:ietf:params:oauth:token-type:access_token',
+        subjectTokenType:
+          'urn:ietf:params:oauth:token-type:jwt',
+        subjectToken: oidcToken,
+        scope:
+          'https://www.googleapis.com/auth/cloud-platform'
+      })
+    }
+  );
+
+  if (!exchange.ok) {
+    throw new Error(
+      `Google STS exchange failed (${exchange.status}).`
+    );
+  }
+
+  const tokenData = await exchange.json();
+
+  const identity = await fetch(
+    `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SERVICE_ACCOUNT}:generateIdToken`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        audience: CLOUD_RUN_URL,
+        includeEmail: true
+      })
+    }
+  );
+
+  if (!identity.ok) {
+    throw new Error(
+      `Cloud Run ID token generation failed (${identity.status}).`
+    );
+  }
+
+  const identityData = await identity.json();
+
+  if (!identityData.token) {
+    throw new Error('Cloud Run ID token is missing.');
+  }
+
+  return identityData.token;
 }
 
 export default async function handler(req, res) {
@@ -72,13 +145,12 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({
-      error: 'Method not allowed'
+      success: false,
+      error: 'Method not allowed.'
     });
   }
 
-  // Reject unauthorized requests before Redis or Google Cloud.
-  const ownerKey = req.headers['x-owner-key'];
-
+  // Owner authentication is required.
   if (!process.env.OWNER_API_KEY) {
     console.error('OWNER_API_KEY is not configured.');
 
@@ -88,20 +160,67 @@ export default async function handler(req, res) {
     });
   }
 
-  if (!validOwnerKey(ownerKey, process.env.OWNER_API_KEY)) {
+  if (
+    !validOwnerKey(
+      req.headers['x-owner-key'],
+      process.env.OWNER_API_KEY
+    )
+  ) {
     return res.status(401).json({
       success: false,
       error: 'Unauthorized.'
     });
   }
 
-  // Fail closed if Redis is unavailable.
+  // Validate the incoming request before calling Redis or AI.
+  const contentLength = Number(req.headers['content-length']);
+
+  if (
+    Number.isFinite(contentLength) &&
+    contentLength > MAX_REQUEST_BYTES
+  ) {
+    return res.status(413).json({
+      success: false,
+      error: 'Request is too large.'
+    });
+  }
+
+  const { question, answer } = req.body || {};
+
+  if (
+    typeof question !== 'string' ||
+    typeof answer !== 'string' ||
+    question.trim().length < 1 ||
+    question.trim().length > 200 ||
+    answer.trim().length < 1 ||
+    answer.trim().length > 2000
+  ) {
+    return res.status(400).json({
+      success: false,
+      error:
+        'Provide a question (1–200 characters) and answer (1–2000 characters).'
+    });
+  }
+
+  if (
+    Buffer.byteLength(
+      JSON.stringify({ question, answer }),
+      'utf8'
+    ) > MAX_REQUEST_BYTES
+  ) {
+    return res.status(413).json({
+      success: false,
+      error: 'Request is too large.'
+    });
+  }
+
+  // Fail closed if the shared usage counter is unavailable.
   let usage;
 
   try {
-    usage = await checkDailyTestLimit();
+    usage = await checkOwnerAllowance();
   } catch (error) {
-    console.error('Redis usage counter failed:', error);
+    console.error('Redis usage protection failed:', error);
 
     return res.status(503).json({
       success: false,
@@ -114,157 +233,73 @@ export default async function handler(req, res) {
     return res.status(429).json({
       success: false,
       stage: 'usage-limit',
-      error: 'Daily connection-test limit reached.',
+      error: 'Daily owner evaluation allowance reached.',
       limit: usage.limit
     });
   }
 
   try {
-    // 1. Obtain Vercel's OIDC identity token.
-    const oidcToken = await getVercelOidcToken();
+    const idToken = await getCloudRunIdToken();
 
-    // 2. Exchange the Vercel token with Google STS.
-    const exchange = await fetch(
-      'https://sts.googleapis.com/v1/token',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          audience: AUDIENCE,
-          grantType:
-            'urn:ietf:params:oauth:grant-type:token-exchange',
-          requestedTokenType:
-            'urn:ietf:params:oauth:token-type:access_token',
-          subjectTokenType:
-            'urn:ietf:params:oauth:token-type:jwt',
-          subjectToken: oidcToken,
-          scope:
-            'https://www.googleapis.com/auth/cloud-platform'
-        })
-      }
-    );
-
-    if (!exchange.ok) {
-      const details = await exchange.json().catch(() => ({}));
-      console.error('Google STS exchange failed:', details);
-
-      return res.status(502).json({
-        success: false,
-        stage: 'google-token-exchange',
-        error: details.error || 'Google Cloud authentication failed.',
-        description:
-          details.error_description || 'No additional details provided.'
-      });
-    }
-
-    const tokenData = await exchange.json();
-
-    // 3. Verify service account impersonation.
-    const impersonation = await fetch(
-      `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SERVICE_ACCOUNT}:generateAccessToken`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          scope: [
-            'https://www.googleapis.com/auth/cloud-platform'
-          ],
-          lifetime: '600s'
-        })
-      }
-    );
-
-    if (!impersonation.ok) {
-      const details = await impersonation.json().catch(() => ({}));
-      console.error('Service account impersonation failed:', details);
-
-      return res.status(502).json({
-        success: false,
-        stage: 'service-account-impersonation',
-        error:
-          details.error?.message || 'Service account impersonation failed.'
-      });
-    }
-
-    // 4. Generate a Google-signed ID token for private Cloud Run.
-    const identity = await fetch(
-      `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SERVICE_ACCOUNT}:generateIdToken`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          audience: CLOUD_RUN_URL,
-          includeEmail: true
-        })
-      }
-    );
-
-    if (!identity.ok) {
-      const details = await identity.json().catch(() => ({}));
-      console.error('Cloud Run ID token generation failed:', details);
-
-      return res.status(502).json({
-        success: false,
-        stage: 'cloud-run-id-token',
-        error:
-          details.error?.message || 'Cloud Run ID token generation failed.'
-      });
-    }
-
-    const identityData = await identity.json();
-
-    // 5. Test private Cloud Run connectivity.
-    // AI evaluation remains disabled.
     const cloudRun = await fetch(CLOUD_RUN_URL, {
-      method: 'GET',
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${identityData.token}`
-      }
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        question: question.trim(),
+        answer: answer.trim()
+      }),
+      signal: AbortSignal.timeout(55000)
     });
 
-    const responseText = await cloudRun.text();
+    const result = await cloudRun.json().catch(() => null);
 
-    if (cloudRun.status === 401 || cloudRun.status === 403) {
+    if (!cloudRun.ok) {
+      console.error('Cloud Run evaluation failed:', {
+        status: cloudRun.status
+      });
+
       return res.status(502).json({
         success: false,
-        stage: 'cloud-run-invocation',
+        stage: 'cloud-run-evaluation',
         cloudRunStatus: cloudRun.status,
-        error: 'Private Cloud Run rejected the authenticated request.'
+        error:
+          result?.error || 'AI evaluation service returned an error.'
       });
     }
 
-    console.log('Cloud Run connection test:', {
-      status: cloudRun.status,
-      responseLength: responseText.length
-    });
+    if (
+      result?.success !== true ||
+      typeof result.totalScore !== 'number' ||
+      !result.evaluation
+    ) {
+      console.error('Unexpected Cloud Run evaluation response.');
 
-    return res.status(503).json({
-      success: false,
-      stage: 'cloud-run-connection-test',
-      authenticated: true,
-      cloudRunStatus: cloudRun.status,
+      return res.status(502).json({
+        success: false,
+        stage: 'evaluation-response',
+        error: 'AI evaluation returned an unexpected response.'
+      });
+    }
+
+    return res.status(200).json({
+      ...result,
       usage: {
         count: usage.count,
-        limit: usage.limit
-      },
-      message:
-        'Private Cloud Run connection test completed. Public AI evaluation remains disabled.'
+        limit: usage.limit,
+        remaining: Math.max(0, usage.limit - usage.count)
+      }
     });
 
   } catch (error) {
-    console.error('Authentication or Cloud Run connection error:', error);
+    console.error('AI evaluation request failed:', error);
 
     return res.status(502).json({
       success: false,
-      error: 'Backend connection test failed.'
+      stage: 'evaluation-connection',
+      error: 'Unable to complete the AI evaluation.'
     });
   }
 }
