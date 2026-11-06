@@ -1,5 +1,6 @@
 
 import { getVercelOidcToken } from '@vercel/oidc';
+import { timingSafeEqual } from 'node:crypto';
 
 const PROJECT_NUMBER = '796597994750';
 const POOL_ID = 'vercel-interview-coach';
@@ -16,12 +17,46 @@ const AUDIENCE =
   `/locations/global/workloadIdentityPools/${POOL_ID}` +
   `/providers/${PROVIDER_ID}`;
 
+function validOwnerKey(provided, expected) {
+  if (
+    typeof provided !== 'string' ||
+    typeof expected !== 'string' ||
+    !expected
+  ) {
+    return false;
+  }
+
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'POST') {
     return res.status(405).json({
       error: 'Method not allowed'
+    });
+  }
+
+  // Reject unauthorized requests before contacting Google Cloud.
+  const ownerKey = req.headers['x-owner-key'];
+
+  if (!process.env.OWNER_API_KEY) {
+    console.error('OWNER_API_KEY is not configured.');
+
+    return res.status(503).json({
+      success: false,
+      error: 'Owner authentication is not configured.'
+    });
+  }
+
+  if (!validOwnerKey(ownerKey, process.env.OWNER_API_KEY)) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized.'
     });
   }
 
@@ -127,8 +162,8 @@ export default async function handler(req, res) {
 
     const identityData = await identity.json();
 
-    // 5. Call private Cloud Run with the signed ID token.
-    // A GET request is used only to test authenticated access.
+    // 5. Test the authenticated private Cloud Run connection.
+    // GET is intentional; AI evaluation remains disabled.
     const cloudRun = await fetch(CLOUD_RUN_URL, {
       method: 'GET',
       headers: {
@@ -138,8 +173,6 @@ export default async function handler(req, res) {
 
     const responseText = await cloudRun.text();
 
-    // Cloud Run may return 405 if its handler only accepts POST.
-    // That still confirms the request reached the application.
     if (cloudRun.status === 401 || cloudRun.status === 403) {
       return res.status(502).json({
         success: false,
@@ -154,7 +187,6 @@ export default async function handler(req, res) {
       responseLength: responseText.length
     });
 
-    // AI evaluation remains disabled in the public endpoint.
     return res.status(503).json({
       success: false,
       stage: 'cloud-run-connection-test',
