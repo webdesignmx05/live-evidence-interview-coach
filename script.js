@@ -1,4 +1,10 @@
+
 'use strict';
+
+// --------------------------------------------------
+// Live Evidence Interview Coach
+// Owner login, Gemini evaluation, and voice practice
+// --------------------------------------------------
 
 const question = document.getElementById('question');
 const answer = document.getElementById('answer');
@@ -18,8 +24,25 @@ const loginControls = document.getElementById('login-controls');
 const logoutControls = document.getElementById('logout-controls');
 const appStatus = document.getElementById('app-status');
 
+const micStartButton = document.getElementById('mic-start');
+const micStopButton = document.getElementById('mic-stop');
+const micStatus = document.getElementById('mic-status');
+
+const MAX_QUESTION = 200;
+const MAX_ANSWER = 2000;
+
 let signedIn = false;
 let busy = false;
+let listening = false;
+let stopping = false;
+let recognition = null;
+let speechBase = '';
+
+const SpeechRecognition =
+  window.SpeechRecognition ||
+  window.webkitSpeechRecognition;
+
+const speechSupported = Boolean(SpeechRecognition);
 
 const example = {
   questionType: 'Experience overview',
@@ -42,6 +65,30 @@ const example = {
     'This example demonstrates how structured interview feedback appears in the dashboard.'
 };
 
+// --------------------------------------------------
+// Interface state
+// --------------------------------------------------
+
+function updateButtons() {
+  evaluateButton.disabled =
+    !signedIn || busy || listening || stopping;
+
+  loginButton.disabled = busy;
+  logoutButton.disabled = busy;
+
+  previewButton.disabled =
+    busy || listening || stopping;
+
+  clearButton.disabled =
+    busy || listening || stopping;
+
+  micStartButton.disabled =
+    !speechSupported || busy || listening || stopping;
+
+  micStopButton.disabled =
+    !listening || stopping;
+}
+
 function setAuthState(authenticated) {
   signedIn = authenticated;
 
@@ -56,17 +103,12 @@ function setAuthState(authenticated) {
     ? 'Owner session · AI connected'
     : 'Owner access · Sign in required';
 
-  evaluateButton.disabled = !authenticated || busy;
+  updateButtons();
 }
 
 function setBusy(value) {
   busy = value;
-
-  evaluateButton.disabled = !signedIn || value;
-  loginButton.disabled = value;
-  logoutButton.disabled = value;
-  previewButton.disabled = value;
-  clearButton.disabled = value;
+  updateButtons();
 }
 
 function updateCounters() {
@@ -80,6 +122,10 @@ function updateCounters() {
 question.addEventListener('input', updateCounters);
 answer.addEventListener('input', updateCounters);
 updateCounters();
+
+// --------------------------------------------------
+// Evaluation dashboard
+// --------------------------------------------------
 
 function renderList(id, items) {
   const list = document.getElementById(id);
@@ -126,6 +172,7 @@ function renderScores(scores) {
 
     track.append(fill);
     item.append(heading, track);
+
     dimensions.append(item);
   }
 }
@@ -180,9 +227,13 @@ async function readResponse(response) {
   return data;
 }
 
-// Check for an existing owner session when the page loads.
+// --------------------------------------------------
+// Owner session restoration
+// --------------------------------------------------
+
 async function restoreSession() {
-  authNotice.textContent = 'Checking existing owner session...';
+  authNotice.textContent =
+    'Checking existing owner session...';
 
   try {
     const response = await fetch('/api/session', {
@@ -215,11 +266,16 @@ async function restoreSession() {
   }
 }
 
+// --------------------------------------------------
+// Owner login
+// --------------------------------------------------
+
 loginButton.addEventListener('click', async () => {
   const ownerKey = ownerKeyInput.value;
 
   if (!ownerKey.trim()) {
-    authNotice.textContent = 'Enter your owner access key.';
+    authNotice.textContent =
+      'Enter your owner access key.';
     return;
   }
 
@@ -249,7 +305,7 @@ loginButton.addEventListener('click', async () => {
       'Signed in successfully. Your session lasts up to 8 hours.';
 
     notice.textContent =
-      'Ready for real Gemini evaluation. Enter your question and answer.';
+      'Ready for real Gemini evaluation.';
   } catch (error) {
     setAuthState(false);
     authNotice.textContent = error.message;
@@ -258,7 +314,15 @@ loginButton.addEventListener('click', async () => {
   }
 });
 
+// --------------------------------------------------
+// Owner logout
+// --------------------------------------------------
+
 logoutButton.addEventListener('click', async () => {
+  if (listening || stopping) {
+    stopMicrophone();
+  }
+
   setBusy(true);
 
   try {
@@ -272,8 +336,11 @@ logoutButton.addEventListener('click', async () => {
     setAuthState(false);
     resetReport();
 
-    authNotice.textContent = 'Signed out successfully.';
-    notice.textContent = 'Sign in to evaluate with Gemini.';
+    authNotice.textContent =
+      'Signed out successfully.';
+
+    notice.textContent =
+      'Sign in to evaluate with Gemini.';
   } catch (error) {
     authNotice.textContent =
       `Could not sign out: ${error.message}`;
@@ -281,6 +348,170 @@ logoutButton.addEventListener('click', async () => {
     setBusy(false);
   }
 });
+
+// --------------------------------------------------
+// Microphone transcription
+// --------------------------------------------------
+
+function setMicStatus(message) {
+  micStatus.textContent = message;
+}
+
+function stopMicrophone() {
+  if (!recognition || !listening || stopping) {
+    return;
+  }
+
+  stopping = true;
+  updateButtons();
+
+  setMicStatus('Stopping microphone...');
+
+  try {
+    recognition.stop();
+  } catch (error) {
+    console.error('Microphone stop failed:', error);
+    listening = false;
+    stopping = false;
+    updateButtons();
+
+    setMicStatus(
+      'Unable to stop normally. Review the transcript.'
+    );
+  }
+}
+
+if (speechSupported) {
+  recognition = new SpeechRecognition();
+
+  recognition.lang = 'en-US';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    listening = true;
+    stopping = false;
+    updateButtons();
+
+    setMicStatus(
+      'Microphone active. Speak naturally, then click Stop microphone.'
+    );
+  };
+
+  recognition.onresult = (event) => {
+    let finalText = '';
+    let interimText = '';
+
+    for (let i = 0; i < event.results.length; i++) {
+      const result = event.results[i];
+      const transcript =
+        result[0]?.transcript || '';
+
+      if (result.isFinal) {
+        finalText += transcript + ' ';
+      } else {
+        interimText += transcript + ' ';
+      }
+    }
+
+    const spokenText =
+      `${finalText} ${interimText}`.trim();
+
+    const combined =
+      [speechBase, spokenText]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+    if (combined.length > MAX_ANSWER) {
+      answer.value = combined.slice(0, MAX_ANSWER);
+      updateCounters();
+
+      setMicStatus(
+        'The 2,000-character answer limit was reached. Recording stopped.'
+      );
+
+      stopMicrophone();
+      return;
+    }
+
+    answer.value = combined;
+    updateCounters();
+  };
+
+  recognition.onerror = (event) => {
+    const messages = {
+      'not-allowed':
+        'Microphone permission was denied. Check Chrome site permissions.',
+      'service-not-allowed':
+        'Speech recognition is blocked by browser settings.',
+      'no-speech':
+        'No speech was detected. Try again when ready.',
+      'audio-capture':
+        'No working microphone was detected.',
+      'network':
+        'Speech recognition encountered a network error.',
+      'aborted':
+        'Speech recognition was interrupted.'
+    };
+
+    setMicStatus(
+      messages[event.error] ||
+      `Speech recognition error: ${event.error}`
+    );
+  };
+
+  recognition.onend = () => {
+    listening = false;
+    stopping = false;
+    updateButtons();
+
+    // Preserve any error message displayed by onerror.
+    if (
+      micStatus.textContent.startsWith('Microphone active') ||
+      micStatus.textContent.startsWith('Stopping microphone')
+    ) {
+      setMicStatus(
+        'Recording stopped. Review and edit your transcript before evaluating.'
+      );
+    }
+  };
+
+  micStartButton.addEventListener('click', () => {
+    if (busy || listening || stopping) {
+      return;
+    }
+
+    speechBase = answer.value.trim();
+
+    setMicStatus('Requesting microphone access...');
+
+    try {
+      recognition.start();
+    } catch (error) {
+      setMicStatus(
+        `Unable to start microphone: ${error.message}`
+      );
+    }
+  });
+
+  micStopButton.addEventListener('click', () => {
+    stopMicrophone();
+  });
+
+  setMicStatus(
+    'Microphone available. Click Start microphone to dictate your answer.'
+  );
+} else {
+  setMicStatus(
+    'Speech recognition is not supported in this browser. Typed answers remain available.'
+  );
+}
+
+// --------------------------------------------------
+// Sample preview (no Gemini usage)
+// --------------------------------------------------
 
 previewButton.addEventListener('click', () => {
   if (!question.value.trim() || !answer.value.trim()) {
@@ -309,6 +540,10 @@ previewButton.addEventListener('click', () => {
     'Sample preview only. No Gemini request was made.';
 });
 
+// --------------------------------------------------
+// Live Gemini evaluation
+// --------------------------------------------------
+
 evaluateButton.addEventListener('click', async () => {
   const questionText = question.value.trim();
   const answerText = answer.value.trim();
@@ -319,11 +554,17 @@ evaluateButton.addEventListener('click', async () => {
     return;
   }
 
+  if (listening || stopping) {
+    notice.textContent =
+      'Stop the microphone and review your transcript first.';
+    return;
+  }
+
   if (
     !questionText ||
     !answerText ||
-    questionText.length > 200 ||
-    answerText.length > 2000
+    questionText.length > MAX_QUESTION ||
+    answerText.length > MAX_ANSWER
   ) {
     notice.textContent =
       'Enter a question (1–200 characters) and answer (1–2000 characters).';
@@ -331,6 +572,7 @@ evaluateButton.addEventListener('click', async () => {
   }
 
   setBusy(true);
+
   notice.textContent =
     'Gemini is evaluating your answer. Please wait...';
 
@@ -364,10 +606,14 @@ evaluateButton.addEventListener('click', async () => {
       ['Clear claim', dimensions.clearClaim?.score],
       ['Specific context', dimensions.specificContext?.score],
       ['Concrete action', dimensions.concreteAction?.score],
-      ['Evidence / verification',
-        dimensions.evidenceVerification?.score],
-      ['Result / relevance',
-        dimensions.resultRelevance?.score]
+      [
+        'Evidence / verification',
+        dimensions.evidenceVerification?.score
+      ],
+      [
+        'Result / relevance',
+        dimensions.resultRelevance?.score
+      ]
     ];
 
     const category = String(
@@ -407,11 +653,16 @@ evaluateButton.addEventListener('click', async () => {
         'Your session has expired. Please sign in again.';
     }
 
-    notice.textContent = `Evaluation failed: ${error.message}`;
+    notice.textContent =
+      `Evaluation failed: ${error.message}`;
   } finally {
     setBusy(false);
   }
 });
+
+// --------------------------------------------------
+// Clear practice
+// --------------------------------------------------
 
 clearButton.addEventListener('click', () => {
   question.value = '';
@@ -425,7 +676,10 @@ clearButton.addEventListener('click', () => {
     : 'Sign in to enable live Gemini evaluations.';
 });
 
-// Start with evaluation disabled until authentication is checked.
+// --------------------------------------------------
+// Startup
+// --------------------------------------------------
+
 setAuthState(false);
 resetReport();
 restoreSession();
