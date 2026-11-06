@@ -1,4 +1,3 @@
-
 'use strict';
 
 const question = document.getElementById('question');
@@ -99,6 +98,7 @@ function renderScores(scores) {
 
   for (const [name, rawScore] of scores) {
     const score = Number(rawScore);
+
     const safeScore = Number.isFinite(score)
       ? Math.max(0, Math.min(20, score))
       : 0;
@@ -160,6 +160,7 @@ function renderReport({
 function resetReport() {
   document.getElementById('empty').hidden = false;
   document.getElementById('report').hidden = true;
+
   document.getElementById('result-mode').textContent =
     'Awaiting evaluation';
 }
@@ -171,11 +172,47 @@ async function readResponse(response) {
     const error = new Error(
       data?.error || `Request failed (${response.status}).`
     );
+
     error.status = response.status;
     throw error;
   }
 
   return data;
+}
+
+// Check for an existing owner session when the page loads.
+async function restoreSession() {
+  authNotice.textContent = 'Checking existing owner session...';
+
+  try {
+    const response = await fetch('/api/session', {
+      method: 'GET',
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+
+    const result = await readResponse(response);
+
+    if (result.authenticated === true) {
+      setAuthState(true);
+
+      authNotice.textContent =
+        'Your existing owner session has been restored.';
+
+      notice.textContent =
+        'Ready for real Gemini evaluation.';
+    } else {
+      setAuthState(false);
+
+      authNotice.textContent =
+        'Sign in to enable live Gemini evaluations.';
+    }
+  } catch (error) {
+    setAuthState(false);
+
+    authNotice.textContent =
+      `Unable to verify session: ${error.message}`;
+  }
 }
 
 loginButton.addEventListener('click', async () => {
@@ -277,7 +314,8 @@ evaluateButton.addEventListener('click', async () => {
   const answerText = answer.value.trim();
 
   if (!signedIn) {
-    notice.textContent = 'Sign in before requesting AI evaluation.';
+    notice.textContent =
+      'Sign in before requesting AI evaluation.';
     return;
   }
 
@@ -364,6 +402,7 @@ evaluateButton.addEventListener('click', async () => {
   } catch (error) {
     if (error.status === 401) {
       setAuthState(false);
+
       authNotice.textContent =
         'Your session has expired. Please sign in again.';
     }
@@ -386,5 +425,7 @@ clearButton.addEventListener('click', () => {
     : 'Sign in to enable live Gemini evaluations.';
 });
 
+// Start with evaluation disabled until authentication is checked.
 setAuthState(false);
 resetReport();
+restoreSession();
