@@ -1,10 +1,7 @@
-
 'use strict';
 
-// --------------------------------------------------
 // Live Evidence Interview Coach
-// Owner login, Gemini evaluation, and voice practice
-// --------------------------------------------------
+// Owner authentication, Gemini evaluation, and voice practice.
 
 const question = document.getElementById('question');
 const answer = document.getElementById('answer');
@@ -27,16 +24,23 @@ const appStatus = document.getElementById('app-status');
 const micStartButton = document.getElementById('mic-start');
 const micStopButton = document.getElementById('mic-stop');
 const micStatus = document.getElementById('mic-status');
+const micTimer = document.getElementById('mic-timer');
 
 const MAX_QUESTION = 200;
 const MAX_ANSWER = 2000;
 
 let signedIn = false;
 let busy = false;
-let listening = false;
-let stopping = false;
+
+// Microphone states:
+// idle, starting, listening, stopping
+let micState = 'idle';
 let recognition = null;
 let speechBase = '';
+
+let timerStartedAt = null;
+let timerInterval = null;
+let elapsedMilliseconds = 0;
 
 const SpeechRecognition =
   window.SpeechRecognition ||
@@ -70,23 +74,22 @@ const example = {
 // --------------------------------------------------
 
 function updateButtons() {
+  const micActive = micState !== 'idle';
+
   evaluateButton.disabled =
-    !signedIn || busy || listening || stopping;
+    !signedIn || busy || micActive;
 
   loginButton.disabled = busy;
-  logoutButton.disabled = busy;
+  logoutButton.disabled = busy || micActive;
 
-  previewButton.disabled =
-    busy || listening || stopping;
-
-  clearButton.disabled =
-    busy || listening || stopping;
+  previewButton.disabled = busy || micActive;
+  clearButton.disabled = busy || micActive;
 
   micStartButton.disabled =
-    !speechSupported || busy || listening || stopping;
+    !speechSupported || busy || micActive;
 
   micStopButton.disabled =
-    !listening || stopping;
+    micState !== 'listening';
 }
 
 function setAuthState(authenticated) {
@@ -122,6 +125,66 @@ function updateCounters() {
 question.addEventListener('input', updateCounters);
 answer.addEventListener('input', updateCounters);
 updateCounters();
+
+// --------------------------------------------------
+// Stopwatch
+// --------------------------------------------------
+
+function formatDuration(milliseconds) {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return (
+    String(minutes).padStart(2, '0') +
+    ':' +
+    String(seconds).padStart(2, '0')
+  );
+}
+
+function displayTimer() {
+  const duration = timerStartedAt === null
+    ? elapsedMilliseconds
+    : elapsedMilliseconds +
+      (performance.now() - timerStartedAt);
+
+  micTimer.textContent = formatDuration(duration);
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+
+  elapsedMilliseconds = 0;
+  timerStartedAt = performance.now();
+
+  displayTimer();
+
+  timerInterval = setInterval(displayTimer, 250);
+}
+
+function stopTimer() {
+  if (timerStartedAt !== null) {
+    elapsedMilliseconds +=
+      performance.now() - timerStartedAt;
+
+    timerStartedAt = null;
+  }
+
+  clearInterval(timerInterval);
+  timerInterval = null;
+
+  displayTimer();
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+
+  timerStartedAt = null;
+  elapsedMilliseconds = 0;
+
+  displayTimer();
+}
 
 // --------------------------------------------------
 // Evaluation dashboard
@@ -319,10 +382,6 @@ loginButton.addEventListener('click', async () => {
 // --------------------------------------------------
 
 logoutButton.addEventListener('click', async () => {
-  if (listening || stopping) {
-    stopMicrophone();
-  }
-
   setBusy(true);
 
   try {
@@ -358,25 +417,32 @@ function setMicStatus(message) {
 }
 
 function stopMicrophone() {
-  if (!recognition || !listening || stopping) {
+  if (
+    !recognition ||
+    (micState !== 'listening' &&
+     micState !== 'starting')
+  ) {
     return;
   }
 
-  stopping = true;
+  micState = 'stopping';
   updateButtons();
 
-  setMicStatus('Stopping microphone...');
+  setMicStatus(
+    'Processing speech... Waiting for the final transcript.'
+  );
 
   try {
     recognition.stop();
   } catch (error) {
     console.error('Microphone stop failed:', error);
-    listening = false;
-    stopping = false;
+
+    stopTimer();
+    micState = 'idle';
     updateButtons();
 
     setMicStatus(
-      'Unable to stop normally. Review the transcript.'
+      'Unable to stop normally. Review your transcript.'
     );
   }
 }
@@ -390,13 +456,15 @@ if (speechSupported) {
   recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
-    listening = true;
-    stopping = false;
+    if (micState !== 'starting') {
+      return;
+    }
+
+    micState = 'listening';
+    startTimer();
     updateButtons();
 
-    setMicStatus(
-      'Microphone active. Speak naturally, then click Stop microphone.'
-    );
+    setMicStatus('Listening — speak now.');
   };
 
   recognition.onresult = (event) => {
@@ -405,8 +473,7 @@ if (speechSupported) {
 
     for (let i = 0; i < event.results.length; i++) {
       const result = event.results[i];
-      const transcript =
-        result[0]?.transcript || '';
+      const transcript = result[0]?.transcript || '';
 
       if (result.isFinal) {
         finalText += transcript + ' ';
@@ -429,7 +496,7 @@ if (speechSupported) {
       updateCounters();
 
       setMicStatus(
-        'The 2,000-character answer limit was reached. Recording stopped.'
+        'The 2,000-character limit was reached. Recording stopped.'
       );
 
       stopMicrophone();
@@ -463,33 +530,42 @@ if (speechSupported) {
   };
 
   recognition.onend = () => {
-    listening = false;
-    stopping = false;
+    stopTimer();
+
+    micState = 'idle';
     updateButtons();
 
-    // Preserve any error message displayed by onerror.
     if (
-      micStatus.textContent.startsWith('Microphone active') ||
-      micStatus.textContent.startsWith('Stopping microphone')
+      micStatus.textContent.startsWith('Listening') ||
+      micStatus.textContent.startsWith('Processing')
     ) {
       setMicStatus(
-        'Recording stopped. Review and edit your transcript before evaluating.'
+        'Recording stopped. Duration: ' +
+        formatDuration(elapsedMilliseconds) +
+        '. Review and edit your transcript before evaluating.'
       );
     }
   };
 
   micStartButton.addEventListener('click', () => {
-    if (busy || listening || stopping) {
+    if (busy || micState !== 'idle') {
       return;
     }
 
     speechBase = answer.value.trim();
 
-    setMicStatus('Requesting microphone access...');
+    micState = 'starting';
+    resetTimer();
+    updateButtons();
+
+    setMicStatus('Starting microphone... Please wait.');
 
     try {
       recognition.start();
     } catch (error) {
+      micState = 'idle';
+      updateButtons();
+
       setMicStatus(
         `Unable to start microphone: ${error.message}`
       );
@@ -554,7 +630,7 @@ evaluateButton.addEventListener('click', async () => {
     return;
   }
 
-  if (listening || stopping) {
+  if (micState !== 'idle') {
     notice.textContent =
       'Stop the microphone and review your transcript first.';
     return;
@@ -670,6 +746,13 @@ clearButton.addEventListener('click', () => {
 
   updateCounters();
   resetReport();
+  resetTimer();
+
+  setMicStatus(
+    speechSupported
+      ? 'Microphone available. Click Start microphone to dictate your answer.'
+      : 'Speech recognition is not supported in this browser.'
+  );
 
   notice.textContent = signedIn
     ? 'Ready for your next interview question.'
@@ -680,6 +763,7 @@ clearButton.addEventListener('click', () => {
 // Startup
 // --------------------------------------------------
 
+resetTimer();
 setAuthState(false);
 resetReport();
 restoreSession();
