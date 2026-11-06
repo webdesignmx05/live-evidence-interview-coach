@@ -3,29 +3,178 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Live Evidence Interview Coach — practice interview answers and review structured feedback." />
+  <meta name="description" content="Live Evidence Interview Coach — practice interview answers and review structured AI feedback." />
   <title>Live Evidence Interview Coach</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="shell">
-    <header class="masthead"><div class="brand"><span class="mark">LE</span><span>Live Evidence <strong>Interview Coach</strong></span></div><span class="status">Interface preview · AI not connected</span></header>
-    <section class="hero"><p class="eyebrow">INTERVIEW PRACTICE</p><h1>Make every answer <em>count.</em></h1><p>Practice a question, review a structured sample evaluation, and see how actionable feedback will appear when the AI connection is enabled.</p></section>
+
+    <header class="masthead">
+      <div class="brand">
+        <span class="mark">LE</span>
+        <span>Live Evidence <strong>Interview Coach</strong></span>
+      </div>
+      <span class="status" id="app-status">Owner access · AI enabled</span>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">INTERVIEW PRACTICE</p>
+      <h1>Make every answer <em>count.</em></h1>
+      <p>
+        Practice interview questions, receive structured AI feedback,
+        and improve your answers using evidence-based scoring.
+      </p>
+    </section>
+
+    <section class="panel" aria-labelledby="owner-title">
+      <div class="panel-head">
+        <h2 id="owner-title">Owner access</h2>
+        <span class="pill" id="auth-status">Not signed in</span>
+      </div>
+
+      <div id="login-controls">
+        <label for="owner-key">Owner access key</label>
+        <input
+          id="owner-key"
+          type="password"
+          autocomplete="off"
+          placeholder="Enter your private owner key"
+          style="width:100%;box-sizing:border-box;padding:12px;margin:8px 0 12px;"
+        />
+        <div class="actions">
+          <button id="login" type="button">Sign in</button>
+        </div>
+      </div>
+
+      <div id="logout-controls" hidden>
+        <p>You are signed in for private AI interview practice.</p>
+        <div class="actions">
+          <button id="logout" class="secondary" type="button">
+            Sign out
+          </button>
+        </div>
+      </div>
+
+      <p class="notice" id="auth-notice" role="status">
+        Sign in to enable live Gemini evaluations.
+        Your owner key is not stored in the page.
+      </p>
+    </section>
+
     <div class="layout">
-      <section class="panel" aria-labelledby="practice-title"><div class="panel-head"><h2 id="practice-title">Practice your answer</h2><span class="pill">Typed answers · v1</span></div>
-        <label for="question">Interview question</label><textarea id="question" rows="3" maxlength="2000" placeholder="e.g., Tell me about your experience with Salesforce Marketing Cloud."></textarea><div class="field-note"><span>Use a question you might hear in an interview.</span><span id="question-count">0 / 2,000</span></div>
-        <label for="answer">Your answer</label><textarea id="answer" rows="10" maxlength="12000" placeholder="Write your answer naturally. Focus on what you actually did and can explain."></textarea><div class="field-note"><span>Concise, accurate answers are welcome.</span><span id="answer-count">0 / 12,000</span></div>
-        <div class="actions"><button id="preview" type="button">Preview evaluation layout</button><button id="clear" class="secondary" type="button">Clear</button></div>
-        <p class="notice" role="status" id="notice">Preview mode: this page does not send answers to Gemini or any server. Scores shown are illustrative.</p>
+
+      <section class="panel" aria-labelledby="practice-title">
+        <div class="panel-head">
+          <h2 id="practice-title">Practice your answer</h2>
+          <span class="pill">Typed answers · v1</span>
+        </div>
+
+        <label for="question">Interview question</label>
+        <textarea
+          id="question"
+          rows="3"
+          maxlength="200"
+          placeholder="e.g., Tell me about your experience with Salesforce Marketing Cloud."
+        ></textarea>
+
+        <div class="field-note">
+          <span>Use a question you might hear in an interview.</span>
+          <span id="question-count">0 / 200</span>
+        </div>
+
+        <label for="answer">Your answer</label>
+        <textarea
+          id="answer"
+          rows="10"
+          maxlength="2000"
+          placeholder="Write your answer naturally. Focus on what you actually did and can explain."
+        ></textarea>
+
+        <div class="field-note">
+          <span>Concise, accurate answers are welcome.</span>
+          <span id="answer-count">0 / 2,000</span>
+        </div>
+
+        <div class="actions">
+          <button id="evaluate" type="button" disabled>
+            Evaluate with AI
+          </button>
+
+          <button id="preview" class="secondary" type="button">
+            Preview sample
+          </button>
+
+          <button id="clear" class="secondary" type="button">
+            Clear
+          </button>
+        </div>
+
+        <p class="notice" role="status" id="notice">
+          Sign in above to enable real Gemini evaluations.
+          Sample previews do not use AI.
+        </p>
       </section>
-      <section class="panel results" aria-labelledby="results-title"><div class="panel-head"><h2 id="results-title">Evaluation</h2><span class="pill" id="result-mode">Awaiting preview</span></div>
-        <div id="empty" class="empty"><div class="empty-icon">◎</div><h3>Your results will appear here</h3><p>Enter a question and answer, then preview the dashboard layout. Live AI evaluation is not enabled yet.</p></div>
-        <div id="report" hidden><div class="score-top"><div><p class="eyebrow">ILLUSTRATIVE SCORE</p><div class="big-score"><span id="total">88</span><small>/100</small></div></div><div class="question-type">Example category<br><strong id="category">Experience overview</strong></div></div>
-          <div id="dimensions" class="dimensions"></div><h3>What worked</h3><ul id="strengths"></ul><h3>What to improve</h3><ul id="improvements"></ul><p id="summary" class="summary"></p><p class="disclaimer">Sample content only. These are not AI-generated scores for your answer.</p></div>
+
+      <section class="panel results" aria-labelledby="results-title">
+        <div class="panel-head">
+          <h2 id="results-title">Evaluation</h2>
+          <span class="pill" id="result-mode">Awaiting evaluation</span>
+        </div>
+
+        <div id="empty" class="empty">
+          <div class="empty-icon">◎</div>
+          <h3>Your results will appear here</h3>
+          <p>
+            Enter an interview question and your answer,
+            then evaluate it using Gemini or preview sample results.
+          </p>
+        </div>
+
+        <div id="report" hidden>
+          <div class="score-top">
+            <div>
+              <p class="eyebrow" id="score-label">EVALUATION SCORE</p>
+              <div class="big-score">
+                <span id="total">0</span>
+                <small>/100</small>
+              </div>
+            </div>
+
+            <div class="question-type">
+              Question category<br />
+              <strong id="category">—</strong>
+            </div>
+          </div>
+
+          <div id="dimensions" class="dimensions"></div>
+
+          <h3>What worked</h3>
+          <ul id="strengths"></ul>
+
+          <h3>What to improve</h3>
+          <ul id="improvements"></ul>
+
+          <p id="summary" class="summary"></p>
+
+          <p id="disclaimer" class="disclaimer">
+            AI-generated feedback is advisory.
+            Review scores and suggestions critically.
+          </p>
+        </div>
       </section>
+
     </div>
-    <footer>Live Evidence Interview Coach · Public interface preview · No microphone access · No AI charges from this page</footer>
+
+    <footer>
+      Live Evidence Interview Coach ·
+      Private owner AI evaluations ·
+      No microphone access ·
+      AI requests may incur usage charges
+    </footer>
+
   </main>
+
   <script src="script.js" defer></script>
 </body>
 </html>
