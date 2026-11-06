@@ -1,5 +1,6 @@
 
 import { getVercelOidcToken } from '@vercel/oidc';
+import { Redis } from '@upstash/redis';
 import { timingSafeEqual } from 'node:crypto';
 
 const PROJECT_NUMBER = '796597994750';
@@ -17,6 +18,8 @@ const AUDIENCE =
   `/locations/global/workloadIdentityPools/${POOL_ID}` +
   `/providers/${PROVIDER_ID}`;
 
+const DAILY_TEST_LIMIT = 200;
+
 function validOwnerKey(provided, expected) {
   if (
     typeof provided !== 'string' ||
@@ -32,6 +35,38 @@ function validOwnerKey(provided, expected) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function getRedis() {
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+
+  if (!url || !token) {
+    throw new Error('Redis environment variables are missing.');
+  }
+
+  return new Redis({ url, token });
+}
+
+async function checkDailyTestLimit() {
+  const redis = getRedis();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `interview-coach:connection-test:${today}`;
+
+  // Atomic increment and expiration.
+  // Only authenticated requests reach this point.
+  const count = await redis.incr(key);
+
+  if (count === 1) {
+    await redis.expire(key, 172800);
+  }
+
+  return {
+    allowed: count <= DAILY_TEST_LIMIT,
+    count,
+    limit: DAILY_TEST_LIMIT
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
@@ -41,7 +76,7 @@ export default async function handler(req, res) {
     });
   }
 
-  // Reject unauthorized requests before contacting Google Cloud.
+  // Reject unauthorized requests before Redis or Google Cloud.
   const ownerKey = req.headers['x-owner-key'];
 
   if (!process.env.OWNER_API_KEY) {
@@ -57,6 +92,30 @@ export default async function handler(req, res) {
     return res.status(401).json({
       success: false,
       error: 'Unauthorized.'
+    });
+  }
+
+  // Fail closed if Redis is unavailable.
+  let usage;
+
+  try {
+    usage = await checkDailyTestLimit();
+  } catch (error) {
+    console.error('Redis usage counter failed:', error);
+
+    return res.status(503).json({
+      success: false,
+      stage: 'usage-counter',
+      error: 'Usage protection is temporarily unavailable.'
+    });
+  }
+
+  if (!usage.allowed) {
+    return res.status(429).json({
+      success: false,
+      stage: 'usage-limit',
+      error: 'Daily connection-test limit reached.',
+      limit: usage.limit
     });
   }
 
@@ -162,8 +221,8 @@ export default async function handler(req, res) {
 
     const identityData = await identity.json();
 
-    // 5. Test the authenticated private Cloud Run connection.
-    // GET is intentional; AI evaluation remains disabled.
+    // 5. Test private Cloud Run connectivity.
+    // AI evaluation remains disabled.
     const cloudRun = await fetch(CLOUD_RUN_URL, {
       method: 'GET',
       headers: {
@@ -192,6 +251,10 @@ export default async function handler(req, res) {
       stage: 'cloud-run-connection-test',
       authenticated: true,
       cloudRunStatus: cloudRun.status,
+      usage: {
+        count: usage.count,
+        limit: usage.limit
+      },
       message:
         'Private Cloud Run connection test completed. Public AI evaluation remains disabled.'
     });
