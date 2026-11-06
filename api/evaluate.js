@@ -1,7 +1,7 @@
 
 import { getVercelOidcToken } from '@vercel/oidc';
 import { Redis } from '@upstash/redis';
-import { timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const PROJECT_NUMBER = '796597994750';
 const POOL_ID = 'vercel-interview-coach';
@@ -35,6 +35,44 @@ function validOwnerKey(provided, expected) {
 
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+function validOwnerSession(req) {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) return false;
+
+  const cookie = (req.headers.cookie || '')
+    .split(';')
+    .map(part => part.trim())
+    .find(part => part.startsWith('leic_session='));
+
+  if (!cookie) return false;
+
+  const session = cookie.slice('leic_session='.length);
+  const match = /^v1\.(\d+)\.([A-Za-z0-9_-]+)$/.exec(session);
+
+  if (!match) return false;
+
+  const expiresAt = Number(match[1]);
+
+  if (
+    !Number.isSafeInteger(expiresAt) ||
+    expiresAt <= Math.floor(Date.now() / 1000)
+  ) {
+    return false;
+  }
+
+  const payload = `v1.${match[1]}`;
+
+  const expected = createHmac('sha256', secret)
+    .update(payload)
+    .digest('base64url');
+
+  const a = Buffer.from(match[2]);
+  const b = Buffer.from(expected);
+
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 
 function getRedis() {
   const url = process.env.KV_REST_API_URL;
@@ -151,6 +189,8 @@ export default async function handler(req, res) {
   }
 
   // Owner authentication is required.
+  // Accept either the existing private API key or
+  // a signed owner browser session.
   if (!process.env.OWNER_API_KEY) {
     console.error('OWNER_API_KEY is not configured.');
 
@@ -160,16 +200,31 @@ export default async function handler(req, res) {
     });
   }
 
-  if (
-    !validOwnerKey(
-      req.headers['x-owner-key'],
-      process.env.OWNER_API_KEY
-    )
-  ) {
+  const authenticatedByKey = validOwnerKey(
+    req.headers['x-owner-key'],
+    process.env.OWNER_API_KEY
+  );
+
+  const authenticatedBySession = validOwnerSession(req);
+
+  if (!authenticatedByKey && !authenticatedBySession) {
     return res.status(401).json({
       success: false,
       error: 'Unauthorized.'
     });
+  }
+
+  // Cookie-authenticated requests require a matching origin.
+  // This protects the browser session against cross-site requests.
+  if (authenticatedBySession && !authenticatedByKey) {
+    const expectedOrigin = `https://${req.headers.host}`;
+
+    if (req.headers.origin !== expectedOrigin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Invalid request origin.'
+      });
+    }
   }
 
   // Validate the incoming request before calling Redis or AI.
