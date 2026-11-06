@@ -23,8 +23,10 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Step 1: Obtain the Vercel OIDC identity token.
     const oidcToken = await getVercelOidcToken();
 
+    // Step 2: Exchange the Vercel token for a Google access token.
     const exchange = await fetch(
       'https://sts.googleapis.com/v1/token',
       {
@@ -47,24 +49,63 @@ export default async function handler(req, res) {
       }
     );
 
-if (!exchange.ok) {
-  const details = await exchange.json().catch(() => ({}));
-  console.error('Google STS exchange failed:', details);
+    if (!exchange.ok) {
+      const details = await exchange.json().catch(() => ({}));
 
-  return res.status(502).json({
-    success: false,
-    stage: 'google-token-exchange',
-    error: details.error || 'Google Cloud authentication failed.',
-    description: details.error_description || 'No additional details provided.'
-  });
-}
+      console.error('Google STS exchange failed:', details);
 
+      return res.status(502).json({
+        success: false,
+        stage: 'google-token-exchange',
+        error:
+          details.error || 'Google Cloud authentication failed.',
+        description:
+          details.error_description ||
+          'No additional details provided.'
+      });
+    }
+
+    const tokenData = await exchange.json();
+
+    // Step 3: Test impersonation of the dedicated service account.
+    const impersonation = await fetch(
+      `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SERVICE_ACCOUNT}:generateAccessToken`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          scope: [
+            'https://www.googleapis.com/auth/cloud-platform'
+          ],
+          lifetime: '600s'
+        })
+      }
+    );
+
+    if (!impersonation.ok) {
+      const details = await impersonation.json().catch(() => ({}));
+
+      console.error('Service account impersonation failed:', details);
+
+      return res.status(502).json({
+        success: false,
+        stage: 'service-account-impersonation',
+        error:
+          details.error?.message ||
+          'Service account impersonation failed.'
+      });
+    }
+
+    // Impersonation succeeded, but AI evaluation stays disabled.
     return res.status(503).json({
       success: false,
-      stage: 'google-token-exchange',
+      stage: 'service-account-impersonation',
       authenticated: true,
       message:
-        'Google token exchange succeeded. AI evaluation remains disabled.'
+        'Service account impersonation succeeded. AI evaluation remains disabled.'
     });
 
   } catch (error) {
