@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Live Evidence Interview Coach — practice interview answers and review structured feedback." />
+  <title>Live Evidence Interview Coach</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead"><div class="brand"><span class="mark">LE</span><span>Live Evidence <strong>Interview Coach</strong></span></div><span class="status">Interface preview · AI not connected</span></header>
+    <section class="hero"><p class="eyebrow">INTERVIEW PRACTICE</p><h1>Make every answer <em>count.</em></h1><p>Practice a question, review a structured sample evaluation, and see how actionable feedback will appear when the AI connection is enabled.</p></section>
+    <div class="layout">
+      <section class="panel" aria-labelledby="practice-title"><div class="panel-head"><h2 id="practice-title">Practice your answer</h2><span class="pill">Typed answers · v1</span></div>
+        <label for="question">Interview question</label><textarea id="question" rows="3" maxlength="2000" placeholder="e.g., Tell me about your experience with Salesforce Marketing Cloud."></textarea><div class="field-note"><span>Use a question you might hear in an interview.</span><span id="question-count">0 / 2,000</span></div>
+        <label for="answer">Your answer</label><textarea id="answer" rows="10" maxlength="12000" placeholder="Write your answer naturally. Focus on what you actually did and can explain."></textarea><div class="field-note"><span>Concise, accurate answers are welcome.</span><span id="answer-count">0 / 12,000</span></div>
+        <div class="actions"><button id="preview" type="button">Preview evaluation layout</button><button id="clear" class="secondary" type="button">Clear</button></div>
+        <p class="notice" role="status" id="notice">Preview mode: this page does not send answers to Gemini or any server. Scores shown are illustrative.</p>
+      </section>
+      <section class="panel results" aria-labelledby="results-title"><div class="panel-head"><h2 id="results-title">Evaluation</h2><span class="pill" id="result-mode">Awaiting preview</span></div>
+        <div id="empty" class="empty"><div class="empty-icon">◎</div><h3>Your results will appear here</h3><p>Enter a question and answer, then preview the dashboard layout. Live AI evaluation is not enabled yet.</p></div>
+        <div id="report" hidden><div class="score-top"><div><p class="eyebrow">ILLUSTRATIVE SCORE</p><div class="big-score"><span id="total">88</span><small>/100</small></div></div><div class="question-type">Example category<br><strong id="category">Experience overview</strong></div></div>
+          <div id="dimensions" class="dimensions"></div><h3>What worked</h3><ul id="strengths"></ul><h3>What to improve</h3><ul id="improvements"></ul><p id="summary" class="summary"></p><p class="disclaimer">Sample content only. These are not AI-generated scores for your answer.</p></div>
+      </section>
+    </div>
+    <footer>Live Evidence Interview Coach · Public interface preview · No microphone access · No AI charges from this page</footer>
+  </main>
+  <script src="script.js" defer></script>
+</body>
+</html>
