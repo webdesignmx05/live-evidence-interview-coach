@@ -2,6 +2,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@vercel/oidc": "^4.0.7"
+    "@vercel/oidc": "^4.0.7",
+    "@upstash/redis": "^1.35.0"
   }
 }
