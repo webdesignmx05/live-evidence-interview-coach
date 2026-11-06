@@ -47,13 +47,17 @@ export default async function handler(req, res) {
       }
     );
 
-    if (!exchange.ok) {
-      return res.status(502).json({
-        success: false,
-        stage: 'google-token-exchange',
-        error: 'Google Cloud authentication failed.'
-      });
-    }
+if (!exchange.ok) {
+  const details = await exchange.json().catch(() => ({}));
+  console.error('Google STS exchange failed:', details);
+
+  return res.status(502).json({
+    success: false,
+    stage: 'google-token-exchange',
+    error: details.error || 'Google Cloud authentication failed.',
+    description: details.error_description || 'No additional details provided.'
+  });
+}
 
     return res.status(503).json({
       success: false,
