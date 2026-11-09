@@ -1,0 +1,190 @@
+
+{
+  "schemaVersion": 1,
+  "packId": "general-interview-starter-v1",
+  "title": "General Interview Practice",
+  "company": null,
+  "jobTitle": null,
+  "questions": [
+    {
+      "id": "gen-001",
+      "category": "Background",
+      "difficulty": "beginner",
+      "question": "Tell me about your professional background and the kind of work you do best."
+    },
+    {
+      "id": "gen-002",
+      "category": "Background",
+      "difficulty": "beginner",
+      "question": "What interests you about this position, and how does it fit your experience?"
+    },
+    {
+      "id": "gen-003",
+      "category": "Background",
+      "difficulty": "intermediate",
+      "question": "What distinguishes your experience from other candidates applying for this role?"
+    },
+    {
+      "id": "gen-004",
+      "category": "Background",
+      "difficulty": "intermediate",
+      "question": "How would you explain your technical strengths and the areas you're still developing?"
+    },
+    {
+      "id": "gen-005",
+      "category": "Background",
+      "difficulty": "intermediate",
+      "question": "Describe the responsibilities you handled independently in your previous position."
+    },
+    {
+      "id": "gen-006",
+      "category": "SFMC Production",
+      "difficulty": "intermediate",
+      "question": "Walk me through your process for preparing, testing, and deploying an email campaign."
+    },
+    {
+      "id": "gen-007",
+      "category": "SFMC Production",
+      "difficulty": "intermediate",
+      "question": "How have you used Automation Studio to support recurring marketing operations?"
+    },
+    {
+      "id": "gen-008",
+      "category": "SFMC Production",
+      "difficulty": "intermediate",
+      "question": "How do you use SQL queries and Data Extensions when preparing targeted email audiences?"
+    },
+    {
+      "id": "gen-009",
+      "category": "SFMC Production",
+      "difficulty": "intermediate",
+      "question": "Describe how you've used AMPscript or dynamic content in an email production workflow."
+    },
+    {
+      "id": "gen-010",
+      "category": "SFMC Production",
+      "difficulty": "intermediate",
+      "question": "How would you describe your hands-on Journey Builder experience and its limitations?"
+    },
+    {
+      "id": "gen-011",
+      "category": "Troubleshooting",
+      "difficulty": "intermediate",
+      "question": "An email displays correctly on desktop but breaks on mobile. How would you investigate?"
+    },
+    {
+      "id": "gen-012",
+      "category": "Troubleshooting",
+      "difficulty": "intermediate",
+      "question": "A scheduled automation completes without errors, but expected records are missing. What would you check?"
+    },
+    {
+      "id": "gen-013",
+      "category": "Troubleshooting",
+      "difficulty": "intermediate",
+      "question": "A landing page form submits successfully, but the data isn't appearing where expected. How would you troubleshoot it?"
+    },
+    {
+      "id": "gen-014",
+      "category": "Troubleshooting",
+      "difficulty": "intermediate",
+      "question": "How do you approach an unfamiliar technical error when you don't immediately know the solution?"
+    },
+    {
+      "id": "gen-015",
+      "category": "Troubleshooting",
+      "difficulty": "advanced",
+      "question": "Describe how you would investigate a production issue that cannot be reproduced consistently."
+    },
+    {
+      "id": "gen-016",
+      "category": "Web Development",
+      "difficulty": "intermediate",
+      "question": "What types of HTML, CSS, and JavaScript changes have you handled professionally?"
+    },
+    {
+      "id": "gen-017",
+      "category": "Web Development",
+      "difficulty": "intermediate",
+      "question": "How do you validate that a web page works correctly across different browsers and screen sizes?"
+    },
+    {
+      "id": "gen-018",
+      "category": "Web Development",
+      "difficulty": "intermediate",
+      "question": "Describe your experience maintaining websites through content management systems."
+    },
+    {
+      "id": "gen-019",
+      "category": "Web Development",
+      "difficulty": "intermediate",
+      "question": "What experience do you have working with REST APIs, and how have you tested integrations?"
+    },
+    {
+      "id": "gen-020",
+      "category": "Web Development",
+      "difficulty": "advanced",
+      "question": "How would you approach a web development task involving a framework you haven't used before?"
+    },
+    {
+      "id": "gen-021",
+      "category": "AI & Automation",
+      "difficulty": "intermediate",
+      "question": "Describe an AI-assisted application you've built and explain which parts you personally validated."
+    },
+    {
+      "id": "gen-022",
+      "category": "AI & Automation",
+      "difficulty": "intermediate",
+      "question": "How would you explain the difference between using AI to generate code and independently engineering a solution?"
+    },
+    {
+      "id": "gen-023",
+      "category": "AI & Automation",
+      "difficulty": "intermediate",
+      "question": "Walk me through an automation workflow you've created using APIs, webhooks, or an orchestration platform."
+    },
+    {
+      "id": "gen-024",
+      "category": "AI & Automation",
+      "difficulty": "advanced",
+      "question": "How would you test an AI-powered workflow before allowing it to process real business information?"
+    },
+    {
+      "id": "gen-025",
+      "category": "AI & Automation",
+      "difficulty": "advanced",
+      "question": "What safeguards would you consider when an automation connects several external services?"
+    },
+    {
+      "id": "gen-026",
+      "category": "Behavioral",
+      "difficulty": "beginner",
+      "question": "Tell me about a time you had to learn something quickly to complete an assignment."
+    },
+    {
+      "id": "gen-027",
+      "category": "Behavioral",
+      "difficulty": "intermediate",
+      "question": "Describe a time you discovered a problem during quality assurance. What did you do?"
+    },
+    {
+      "id": "gen-028",
+      "category": "Behavioral",
+      "difficulty": "intermediate",
+      "question": "How do you manage competing deadlines when several assignments need your attention?"
+    },
+    {
+      "id": "gen-029",
+      "category": "Behavioral",
+      "difficulty": "intermediate",
+      "question": "Tell me about a time you needed clarification or assistance to complete a technical task."
+    },
+    {
+      "id": "gen-030",
+      "category": "Behavioral",
+      "difficulty": "intermediate",
+      "question": "How do you communicate progress, technical limitations, or unexpected delays to stakeholders?"
+    }
+  ]
+}
