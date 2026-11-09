@@ -744,3 +744,6 @@ button:disabled:hover { background: #679dff; }
 .analyzer-result-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 22px; }
 .analyzer-result li { margin-bottom: 8px; line-height: 1.45; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .analyzer-result-grid { grid-template-columns: 1fr; } }
+
+#generator-questions { padding-left: 24px; line-height: 1.55; }
+#generator-questions li { margin: 10px 0; overflow-wrap: anywhere; }

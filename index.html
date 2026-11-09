@@ -176,8 +176,19 @@
       <div class="actions">
         <button id="analyzer-clear" class="secondary" type="button">Clear job description</button>
         <button id="analyzer-run" type="button" disabled>Analyze job fit with AI</button>
+        <button id="generator-run" type="button" disabled>Generate 10 interview questions</button>
       </div>
-      <p class="notice" id="analyzer-status" role="status">Sign in to analyze job fit. Interview question generation is coming later.</p>
+      <p class="notice" id="analyzer-status" role="status">Sign in to analyze job fit. Generate a tailored question pack or analyze job fit.</p>
+      <section id="generator-result" class="analyzer-result" aria-label="Generated interview questions" hidden>
+        <h3>Generated interview questions</h3>
+        <p id="generator-title"></p>
+        <ol id="generator-questions"></ol>
+        <div class="actions">
+          <button id="generator-add" type="button">Add to Question Library</button>
+          <button id="generator-download" class="secondary" type="button">Download JSON pack</button>
+        </div>
+        <p id="generator-status" class="notice" role="status"></p>
+      </section>
       <section id="analyzer-result" class="analyzer-result" aria-label="Job suitability assessment" hidden>
         <div class="analyzer-result-head"><strong id="analyzer-decision"></strong><strong id="analyzer-score"></strong></div>
         <p id="analyzer-summary"></p>
@@ -197,7 +208,7 @@
           <p>Evidence-based fit recommendation, strengths, gaps, and uncertainties.</p>
         </div>
         <div class="analyzer-outcome">
-          <p class="eyebrow">PLANNED OUTPUT</p>
+          <p class="eyebrow">NOW AVAILABLE</p>
           <h3>Interview question pack</h3>
           <p>Job-specific questions you can export as JSON and import into the Question Library.</p>
         </div>

@@ -558,12 +558,17 @@ const analyzerDescription = document.getElementById('analyzer-description');
 const analyzerCount = document.getElementById('analyzer-count');
 const analyzerClear = document.getElementById('analyzer-clear');
 const analyzerRun = document.getElementById('analyzer-run');
+const generatorRun = document.getElementById('generator-run');
+const generatorResult = document.getElementById('generator-result');
+const generatorStatus = document.getElementById('generator-status');
+let generatedPack = null;
 const analyzerStatus = document.getElementById('analyzer-status');
 const analyzerResult = document.getElementById('analyzer-result');
 
 function updateAnalyzerButton() {
   if (!analyzerRun) return;
   analyzerRun.disabled = !signedIn || busy || !analyzerDescription.value.trim();
+  generatorRun.disabled = analyzerRun.disabled;
 }
 function updateAnalyzerCount() {
   analyzerCount.textContent = `${analyzerDescription.value.length.toLocaleString()} / 20,000`;
@@ -597,6 +602,7 @@ for (const field of [analyzerCompany, analyzerRole, analyzerDescription]) {
   field.addEventListener('input', () => {
     updateAnalyzerCount();
     hideAnalyzerResult();
+    generatorResult.hidden = true; generatedPack = null;
     analyzerStatus.textContent = 'Draft updated. Run analysis when ready.';
   });
 }
@@ -604,7 +610,7 @@ analyzerClear.addEventListener('click', () => {
   if (![analyzerCompany, analyzerRole, analyzerDescription].some(field => field.value.trim())) return;
   if (!window.confirm('Clear the company, job title, and job description? This draft is not saved.')) return;
   analyzerCompany.value = ''; analyzerRole.value = ''; analyzerDescription.value = '';
-  hideAnalyzerResult(); updateAnalyzerCount();
+  hideAnalyzerResult(); generatorResult.hidden = true; generatedPack = null; updateAnalyzerCount();
   analyzerStatus.textContent = 'Job description draft cleared.';
 });
 analyzerRun.addEventListener('click', async () => {
@@ -641,6 +647,86 @@ analyzerRun.addEventListener('click', async () => {
     analyzerStatus.textContent = `Job analysis failed: ${error.message}`;
   } finally { setBusy(false); }
 });
+
+generatorRun.addEventListener('click', async () => {
+  if (!signedIn || busy) return;
+  const jobDescription = analyzerDescription.value.trim();
+  if (!jobDescription || jobDescription.length > 20000) {
+    analyzerStatus.textContent = 'Enter a job description (1–20,000 characters).';
+    return;
+  }
+  generatedPack = null;
+  generatorResult.hidden = true;
+  setBusy(true);
+  analyzerStatus.textContent = 'Gemini is generating 10 tailored questions. Please wait...';
+  try {
+    const response = await fetch('/api/generate-questions', {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({company:analyzerCompany.value.trim(),jobTitle:analyzerRole.value.trim(),jobDescription})
+    });
+    const result = await readResponse(response);
+    if (result.success !== true) throw new Error('Question generation did not succeed.');
+    generatedPack = validatePack(result.pack);
+    if (generatedPack.questions.length !== 10) throw new Error('Expected exactly 10 questions.');
+    document.getElementById('generator-title').textContent = generatedPack.title;
+    const list = document.getElementById('generator-questions');
+    list.replaceChildren();
+    for (const item of generatedPack.questions) {
+      const li = document.createElement('li');
+      li.textContent = `${item.question} (${item.category} · ${item.difficulty})`;
+      list.append(li);
+    }
+    generatorStatus.textContent = 'Review the questions, then add them to your library or download a JSON backup.';
+    generatorResult.hidden = false;
+    const remaining = result.usage?.remaining;
+    analyzerStatus.textContent = 'Generated 10 interview questions.' +
+      (typeof remaining === 'number' ? ` Daily AI requests remaining: ${remaining}.` : '');
+  } catch (error) {
+    if (error.status === 401) {
+      setAuthState(false);
+      authNotice.textContent = 'Your session has expired. Please sign in again.';
+    }
+    analyzerStatus.textContent = `Question generation failed: ${error.message}`;
+  } finally { setBusy(false); }
+});
+document.getElementById('generator-add').addEventListener('click', () => {
+  if (!generatedPack || !libraryReady) {
+    generatorStatus.textContent = 'Question Library is not ready.';
+    return;
+  }
+  if (packs.length - 1 >= MAX_SAVED_PACKS) {
+    generatorStatus.textContent = 'Maximum imported collections reached. Download JSON instead.';
+    return;
+  }
+  const existingTexts = new Set(packs.flatMap(p => p.questions.map(q => normalizedQuestion(q.question))));
+  const unique = generatedPack.questions.filter(q => !existingTexts.has(normalizedQuestion(q.question)));
+  if (!unique.length) {
+    generatorStatus.textContent = 'These questions are already in the library.';
+    return;
+  }
+  const pack = {...generatedPack, questions:unique};
+  let suffix = 2;
+  const baseId = pack.packId.slice(0, 90);
+  while (packs.some(p => p.packId === pack.packId)) pack.packId = `${baseId}-${suffix++}`;
+  packs.push(pack);
+  const saved = saveImportedPacks();
+  refreshPackOptions(pack.packId);
+  generatorStatus.textContent = `Added ${unique.length} questions to "${pack.title}". ` +
+    (saved ? 'Saved in this browser.' : 'Browser storage unavailable: download JSON now.');
+  libraryMessage(`Selected "${pack.title}". Choose Next Question to begin.`);
+});
+document.getElementById('generator-download').addEventListener('click', () => {
+  if (!generatedPack) return;
+  const blob = new Blob([JSON.stringify(generatedPack,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${generatedPack.packId}.json`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url),1000);
+  generatorStatus.textContent = 'JSON download requested. Check your browser downloads.';
+});
+
 updateAnalyzerCount();
 
 // Startup
