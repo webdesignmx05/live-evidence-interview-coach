@@ -550,6 +550,31 @@ async function initializeLibrary() {
   }
 }
 
+// Job Description Analyzer: local, unsaved interface only. No API calls.
+const analyzerCompany = document.getElementById('analyzer-company');
+const analyzerRole = document.getElementById('analyzer-role');
+const analyzerDescription = document.getElementById('analyzer-description');
+const analyzerCount = document.getElementById('analyzer-count');
+const analyzerClear = document.getElementById('analyzer-clear');
+const analyzerStatus = document.getElementById('analyzer-status');
+function updateAnalyzerCount() {
+  analyzerCount.textContent = `${analyzerDescription.value.length.toLocaleString()} / 20,000`;
+}
+analyzerDescription.addEventListener('input', () => {
+  updateAnalyzerCount();
+  analyzerStatus.textContent = 'Draft updated on this page. No analysis has been run.';
+});
+analyzerClear.addEventListener('click', () => {
+  if (![analyzerCompany, analyzerRole, analyzerDescription].some(field => field.value.trim())) return;
+  if (!window.confirm('Clear the company, job title, and job description? This draft is not saved.')) return;
+  analyzerCompany.value = '';
+  analyzerRole.value = '';
+  analyzerDescription.value = '';
+  updateAnalyzerCount();
+  analyzerStatus.textContent = 'Job description draft cleared.';
+});
+updateAnalyzerCount();
+
 // Startup
 resetTimer();
 setAuthState(false);

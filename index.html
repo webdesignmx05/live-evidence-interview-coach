@@ -150,6 +150,48 @@
       </p>
     </section>
 
+    <!-- Job Description Analyzer — interface preview only; no AI requests -->
+    <section class="panel job-analyzer" aria-labelledby="analyzer-title">
+      <div class="panel-head">
+        <h2 id="analyzer-title">Job Description Analyzer</h2>
+        <span class="pill">Interface preview · No AI requests</span>
+      </div>
+      <p>Prepare a job description for a future skills-fit assessment and tailored interview pack. Analysis is not connected yet.</p>
+      <div class="analyzer-fields">
+        <div>
+          <label for="analyzer-company">Company (optional)</label>
+          <input id="analyzer-company" type="text" maxlength="120" placeholder="e.g., Example Company" autocomplete="off" />
+        </div>
+        <div>
+          <label for="analyzer-role">Job title (optional)</label>
+          <input id="analyzer-role" type="text" maxlength="120" placeholder="e.g., Marketing Automation Specialist" autocomplete="off" />
+        </div>
+      </div>
+      <label for="analyzer-description">Job description</label>
+      <textarea id="analyzer-description" rows="9" maxlength="20000" placeholder="Paste the job posting here. Remove personal details or confidential information before using future AI analysis."></textarea>
+      <div class="field-note">
+        <span>Draft stays on this page only; it is not uploaded or saved.</span>
+        <span id="analyzer-count">0 / 20,000</span>
+      </div>
+      <div class="actions">
+        <button id="analyzer-clear" class="secondary" type="button">Clear job description</button>
+        <button id="analyzer-run" type="button" disabled title="Gemini integration is not available yet">Analyze job fit · Coming later</button>
+      </div>
+      <p class="notice" id="analyzer-status" role="status">Interface ready. Job-fit scoring and question generation will be added in a later phase.</p>
+      <div class="analyzer-outcomes" aria-label="Planned analyzer outputs">
+        <div class="analyzer-outcome">
+          <p class="eyebrow">PLANNED OUTPUT</p>
+          <h3>GO / STRETCH / PASS</h3>
+          <p>Evidence-based fit recommendation, strengths, gaps, and uncertainties.</p>
+        </div>
+        <div class="analyzer-outcome">
+          <p class="eyebrow">PLANNED OUTPUT</p>
+          <h3>Interview question pack</h3>
+          <p>Job-specific questions you can export as JSON and import into the Question Library.</p>
+        </div>
+      </div>
+    </section>
+
     <div class="layout">
       <section class="panel" aria-labelledby="practice-title">
         <div class="panel-head">
