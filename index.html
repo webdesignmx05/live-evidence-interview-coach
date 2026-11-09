@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -61,6 +62,94 @@
       </p>
     </section>
 
+    <!-- Question Library -->
+    <section class="panel question-library"
+      aria-labelledby="library-title">
+
+      <div class="panel-head">
+        <h2 id="library-title">Question Library</h2>
+        <span class="pill" id="library-count">
+          Loading questions...
+        </span>
+      </div>
+
+      <p>
+        Practice general interview questions or import
+        job-specific question packs generated from job descriptions.
+      </p>
+
+      <div class="library-controls">
+        <div class="library-field">
+          <label for="library-pack">Practice collection</label>
+          <select id="library-pack">
+            <option value="">Loading collections...</option>
+          </select>
+        </div>
+
+        <div class="library-field">
+          <label for="library-category">Question category</label>
+          <select id="library-category">
+            <option value="all">All categories</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="library-question">
+        <p class="eyebrow">SELECTED QUESTION</p>
+        <p id="library-question-text">
+          Select a question to begin practicing.
+        </p>
+        <p id="library-question-meta" class="field-note">
+          No question selected
+        </p>
+      </div>
+
+      <div class="actions">
+        <button id="library-random"
+          class="secondary" type="button" disabled>
+          Surprise Me
+        </button>
+
+        <button id="library-next"
+          class="secondary" type="button" disabled>
+          Next Question
+        </button>
+
+        <button id="library-load"
+          type="button" disabled>
+          Load into Practice
+        </button>
+      </div>
+
+      <div class="library-import-export">
+        <label for="library-import-file">
+          Import a JSON question pack
+        </label>
+
+        <input
+          id="library-import-file"
+          type="file"
+          accept=".json,application/json"
+        />
+
+        <div class="actions">
+          <button id="library-import"
+            class="secondary" type="button" disabled>
+            Import JSON
+          </button>
+
+          <button id="library-export"
+            class="secondary" type="button" disabled>
+            Export Selected Pack
+          </button>
+        </div>
+      </div>
+
+      <p class="notice" id="library-status" role="status">
+        Question Library setup in progress.
+      </p>
+    </section>
+
     <div class="layout">
       <section class="panel" aria-labelledby="practice-title">
         <div class="panel-head">
@@ -95,14 +184,18 @@
         </div>
 
         <div class="actions" aria-label="Microphone controls">
-          <button id="mic-start" class="secondary" type="button" disabled>
+          <button id="mic-start" class="secondary"
+            type="button" disabled>
             Start microphone
           </button>
-          <button id="mic-stop" class="secondary" type="button" disabled>
+
+          <button id="mic-stop" class="secondary"
+            type="button" disabled>
             Stop microphone
           </button>
 
-          <div class="mic-timer" aria-label="Microphone recording duration">
+          <div class="mic-timer"
+            aria-label="Microphone recording duration">
             <span class="mic-timer-label">RECORDING TIME</span>
             <span id="mic-timer" class="mic-timer-value" role="timer">
               00:00
@@ -118,9 +211,11 @@
           <button id="evaluate" type="button" disabled>
             Evaluate with AI
           </button>
+
           <button id="preview" class="secondary" type="button">
             Preview sample
           </button>
+
           <button id="clear" class="secondary" type="button">
             Clear
           </button>
@@ -135,7 +230,9 @@
       <section class="panel results" aria-labelledby="results-title">
         <div class="panel-head">
           <h2 id="results-title">Evaluation</h2>
-          <span class="pill" id="result-mode">Awaiting evaluation</span>
+          <span class="pill" id="result-mode">
+            Awaiting evaluation
+          </span>
         </div>
 
         <div id="empty" class="empty">
