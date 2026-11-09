@@ -150,13 +150,13 @@
       </p>
     </section>
 
-    <!-- Job Description Analyzer — interface preview only; no AI requests -->
+    <!-- Job Description Analyzer — authenticated Gemini job-fit analysis -->
     <section class="panel job-analyzer" aria-labelledby="analyzer-title">
       <div class="panel-head">
         <h2 id="analyzer-title">Job Description Analyzer</h2>
-        <span class="pill">Interface preview · No AI requests</span>
+        <span class="pill">Owner-only AI assessment</span>
       </div>
-      <p>Prepare a job description for a future skills-fit assessment and tailored interview pack. Analysis is not connected yet.</p>
+      <p>Paste a job description to compare its requirements with your approved skills profile. Sign in to run Gemini analysis.</p>
       <div class="analyzer-fields">
         <div>
           <label for="analyzer-company">Company (optional)</label>
@@ -170,17 +170,29 @@
       <label for="analyzer-description">Job description</label>
       <textarea id="analyzer-description" rows="9" maxlength="20000" placeholder="Paste the job posting here. Remove personal details or confidential information before using future AI analysis."></textarea>
       <div class="field-note">
-        <span>Draft stays on this page only; it is not uploaded or saved.</span>
+        <span>Draft is not saved. Clicking Analyze sends it securely to Gemini for assessment.</span>
         <span id="analyzer-count">0 / 20,000</span>
       </div>
       <div class="actions">
         <button id="analyzer-clear" class="secondary" type="button">Clear job description</button>
-        <button id="analyzer-run" type="button" disabled title="Gemini integration is not available yet">Analyze job fit · Coming later</button>
+        <button id="analyzer-run" type="button" disabled>Analyze job fit with AI</button>
       </div>
-      <p class="notice" id="analyzer-status" role="status">Interface ready. Job-fit scoring and question generation will be added in a later phase.</p>
+      <p class="notice" id="analyzer-status" role="status">Sign in to analyze job fit. Interview question generation is coming later.</p>
+      <section id="analyzer-result" class="analyzer-result" aria-label="Job suitability assessment" hidden>
+        <div class="analyzer-result-head"><strong id="analyzer-decision"></strong><strong id="analyzer-score"></strong></div>
+        <p id="analyzer-summary"></p>
+        <h3>Why this recommendation</h3><p id="analyzer-reason"></p>
+        <div class="analyzer-result-grid">
+          <div><h3>Matching qualifications</h3><ul id="analyzer-matches"></ul></div>
+          <div><h3>Skills or experience gaps</h3><ul id="analyzer-gaps"></ul></div>
+          <div><h3>Unknowns to verify</h3><ul id="analyzer-unknowns"></ul></div>
+          <div><h3>Employment constraints</h3><ul id="analyzer-constraints"></ul></div>
+        </div>
+        <p class="field-note">AI assessment is advisory, not a hiring probability. Verify posting details independently.</p>
+      </section>
       <div class="analyzer-outcomes" aria-label="Planned analyzer outputs">
         <div class="analyzer-outcome">
-          <p class="eyebrow">PLANNED OUTPUT</p>
+          <p class="eyebrow">NOW AVAILABLE</p>
           <h3>GO / STRETCH / PASS</h3>
           <p>Evidence-based fit recommendation, strengths, gaps, and uncertainties.</p>
         </div>

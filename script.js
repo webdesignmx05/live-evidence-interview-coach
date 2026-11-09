@@ -49,6 +49,7 @@ function updateButtons() {
   micStartButton.disabled = !speechSupported || busy || micActive;
   micStopButton.disabled = micState !== 'listening';
   updateLibraryButtons();
+  updateAnalyzerButton();
 }
 function setAuthState(authenticated) {
   signedIn = authenticated;
@@ -550,28 +551,95 @@ async function initializeLibrary() {
   }
 }
 
-// Job Description Analyzer: local, unsaved interface only. No API calls.
+// Job Description Analyzer: owner-only Gemini job-fit assessment.
 const analyzerCompany = document.getElementById('analyzer-company');
 const analyzerRole = document.getElementById('analyzer-role');
 const analyzerDescription = document.getElementById('analyzer-description');
 const analyzerCount = document.getElementById('analyzer-count');
 const analyzerClear = document.getElementById('analyzer-clear');
+const analyzerRun = document.getElementById('analyzer-run');
 const analyzerStatus = document.getElementById('analyzer-status');
+const analyzerResult = document.getElementById('analyzer-result');
+
+function updateAnalyzerButton() {
+  if (!analyzerRun) return;
+  analyzerRun.disabled = !signedIn || busy || !analyzerDescription.value.trim();
+}
 function updateAnalyzerCount() {
   analyzerCount.textContent = `${analyzerDescription.value.length.toLocaleString()} / 20,000`;
+  updateAnalyzerButton();
 }
-analyzerDescription.addEventListener('input', () => {
-  updateAnalyzerCount();
-  analyzerStatus.textContent = 'Draft updated on this page. No analysis has been run.';
-});
+function hideAnalyzerResult() { analyzerResult.hidden = true; }
+function renderAnalyzerList(id, items) {
+  const target = document.getElementById(id);
+  target.replaceChildren();
+  if (!Array.isArray(items) || items.length === 0) {
+    const li = document.createElement('li'); li.textContent = 'None identified.'; target.append(li); return;
+  }
+  for (const item of items) {
+    const li = document.createElement('li');
+    li.textContent = String(item);
+    target.append(li);
+  }
+}
+function renderAnalyzerAssessment(data) {
+  document.getElementById('analyzer-decision').textContent = data.decision;
+  document.getElementById('analyzer-score').textContent = `${data.fitScore}/100`;
+  document.getElementById('analyzer-summary').textContent = data.summary;
+  document.getElementById('analyzer-reason').textContent = data.recommendationReason;
+  renderAnalyzerList('analyzer-matches', data.matchingQualifications);
+  renderAnalyzerList('analyzer-gaps', data.gaps);
+  renderAnalyzerList('analyzer-unknowns', data.unknowns);
+  renderAnalyzerList('analyzer-constraints', data.constraints);
+  analyzerResult.hidden = false;
+}
+for (const field of [analyzerCompany, analyzerRole, analyzerDescription]) {
+  field.addEventListener('input', () => {
+    updateAnalyzerCount();
+    hideAnalyzerResult();
+    analyzerStatus.textContent = 'Draft updated. Run analysis when ready.';
+  });
+}
 analyzerClear.addEventListener('click', () => {
   if (![analyzerCompany, analyzerRole, analyzerDescription].some(field => field.value.trim())) return;
   if (!window.confirm('Clear the company, job title, and job description? This draft is not saved.')) return;
-  analyzerCompany.value = '';
-  analyzerRole.value = '';
-  analyzerDescription.value = '';
-  updateAnalyzerCount();
+  analyzerCompany.value = ''; analyzerRole.value = ''; analyzerDescription.value = '';
+  hideAnalyzerResult(); updateAnalyzerCount();
   analyzerStatus.textContent = 'Job description draft cleared.';
+});
+analyzerRun.addEventListener('click', async () => {
+  if (!signedIn) { analyzerStatus.textContent = 'Sign in to analyze a job.'; return; }
+  const jobDescription = analyzerDescription.value.trim();
+  if (!jobDescription || jobDescription.length > 20000) {
+    analyzerStatus.textContent = 'Enter a job description (1–20,000 characters).'; return;
+  }
+  setBusy(true);
+  hideAnalyzerResult();
+  analyzerStatus.textContent = 'Gemini is comparing the job requirements with your skills profile. Please wait...';
+  try {
+    const response = await fetch('/api/analyze-job', {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({company: analyzerCompany.value.trim(), jobTitle: analyzerRole.value.trim(), jobDescription})
+    });
+    const result = await readResponse(response);
+    const assessment = result.assessment;
+    if (result.success !== true || !assessment ||
+        !['GO','STRETCH','PASS'].includes(assessment.decision) ||
+        !Number.isInteger(assessment.fitScore)) {
+      throw new Error('The AI job assessment response was incomplete.');
+    }
+    renderAnalyzerAssessment(assessment);
+    const remaining = result.usage?.remaining;
+    analyzerStatus.textContent = `Job analysis complete: ${assessment.decision} (${assessment.fitScore}/100).` +
+      (typeof remaining === 'number' ? ` Daily AI requests remaining: ${remaining}.` : '');
+  } catch (error) {
+    if (error.status === 401) {
+      setAuthState(false);
+      authNotice.textContent = 'Your session has expired. Please sign in again.';
+    }
+    analyzerStatus.textContent = `Job analysis failed: ${error.message}`;
+  } finally { setBusy(false); }
 });
 updateAnalyzerCount();
 
