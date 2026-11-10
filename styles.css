@@ -764,3 +764,11 @@ button:disabled:hover { background: #679dff; }
 .analyzer-score-explanation p { margin: 5px 0 12px; overflow-wrap: anywhere; }
 .analyzer-expanded { margin-top: 16px; padding-top: 8px; border-top: 1px solid #50426f; }
 .analyzer-expanded[hidden] { display: none; }
+
+
+/* Consistent separation between main dashboard panels.
+   Keep the existing 20px Question Library bottom spacing. */
+.shell > .panel + .panel,
+.shell > .panel + .layout {
+  margin-top: 20px;
+}
