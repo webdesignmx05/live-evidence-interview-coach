@@ -671,14 +671,32 @@ function renderAnalyzerList(id, items) {
   }
 }
 function renderAnalyzerAssessment(data) {
-  document.getElementById('analyzer-decision').textContent = data.decision;
-  document.getElementById('analyzer-score').textContent = `${data.fitScore}/100`;
+  const recommendation = ['GO','STRETCH','PASS'].includes(data.applicationRecommendation)
+    ? data.applicationRecommendation : data.decision;
+  const technicalScore = Number.isInteger(data.technicalAlignmentScore)
+    ? data.technicalAlignmentScore : data.fitScore;
+  document.getElementById('analyzer-decision').textContent = recommendation;
+  document.getElementById('analyzer-score').textContent = `${technicalScore}/100`;
+  document.getElementById('analyzer-technical-reason').textContent =
+    typeof data.technicalAlignmentReason === 'string' && data.technicalAlignmentReason.trim()
+      ? data.technicalAlignmentReason : 'Technical alignment reflects the documented qualifications and gaps below.';
+  document.getElementById('analyzer-application-label').textContent =
+    `${recommendation} — ${data.recommendationReason || 'Review the evidence and constraints below.'}`;
   document.getElementById('analyzer-summary').textContent = data.summary;
   document.getElementById('analyzer-reason').textContent = data.recommendationReason;
   renderAnalyzerList('analyzer-matches', data.matchingQualifications);
   renderAnalyzerList('analyzer-gaps', data.gaps);
   renderAnalyzerList('analyzer-unknowns', data.unknowns);
   renderAnalyzerList('analyzer-constraints', data.constraints);
+  const hasExpanded = ['educationCredentials','transferableStrengths','essentialGaps']
+    .some(key => Array.isArray(data[key]));
+  const expanded = document.getElementById('analyzer-expanded');
+  expanded.hidden = !hasExpanded;
+  if (hasExpanded) {
+    renderAnalyzerList('analyzer-education', data.educationCredentials);
+    renderAnalyzerList('analyzer-transferable', data.transferableStrengths);
+    renderAnalyzerList('analyzer-essential-gaps', data.essentialGaps);
+  }
   analyzerResult.hidden = false;
 }
 for (const field of [analyzerCompany, analyzerRole, analyzerDescription]) {

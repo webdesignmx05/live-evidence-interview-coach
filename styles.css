@@ -757,3 +757,10 @@ button:disabled:hover { background: #679dff; }
 .suggestion-result p, .suggestion-result li { line-height: 1.55; overflow-wrap: anywhere; }
 .suggestion-result li { margin-bottom: 6px; }
 .suggestion-disclaimer { font-size: 12px; color: #bcb9d2; }
+
+/* v09: explainable assessment; printing is a separate sprint. */
+.analyzer-score-explanation { margin: 14px 0; padding: 12px 16px; border: 1px solid #4b4770; border-radius: 10px; background: rgba(30,35,65,.6); }
+.analyzer-score-explanation h3:first-child { margin-top: 0; }
+.analyzer-score-explanation p { margin: 5px 0 12px; overflow-wrap: anywhere; }
+.analyzer-expanded { margin-top: 16px; padding-top: 8px; border-top: 1px solid #50426f; }
+.analyzer-expanded[hidden] { display: none; }

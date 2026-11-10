@@ -191,6 +191,10 @@
       </section>
       <section id="analyzer-result" class="analyzer-result" aria-label="Job suitability assessment" hidden>
         <div class="analyzer-result-head"><strong id="analyzer-decision"></strong><strong id="analyzer-score"></strong></div>
+        <div class="analyzer-score-explanation">
+          <h3>Technical alignment</h3><p id="analyzer-technical-reason"></p>
+          <h3>Application recommendation</h3><p id="analyzer-application-label"></p>
+        </div>
         <p id="analyzer-summary"></p>
         <h3>Why this recommendation</h3><p id="analyzer-reason"></p>
         <div class="analyzer-result-grid">
@@ -198,6 +202,14 @@
           <div><h3>Skills or experience gaps</h3><ul id="analyzer-gaps"></ul></div>
           <div><h3>Unknowns to verify</h3><ul id="analyzer-unknowns"></ul></div>
           <div><h3>Employment constraints</h3><ul id="analyzer-constraints"></ul></div>
+        </div>
+        <div id="analyzer-expanded" class="analyzer-expanded" hidden>
+          <h3>Additional career evidence</h3>
+          <div class="analyzer-result-grid">
+            <div><h3>Education &amp; credentials</h3><ul id="analyzer-education"></ul></div>
+            <div><h3>Transferable strengths</h3><ul id="analyzer-transferable"></ul></div>
+            <div><h3>Essential gaps</h3><ul id="analyzer-essential-gaps"></ul></div>
+          </div>
         </div>
         <p class="field-note">AI assessment is advisory, not a hiring probability. Verify posting details independently.</p>
       </section>
