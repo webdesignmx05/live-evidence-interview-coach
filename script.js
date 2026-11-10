@@ -5,6 +5,15 @@ const question = document.getElementById('question');
 const answer = document.getElementById('answer');
 const notice = document.getElementById('notice');
 const evaluateButton = document.getElementById('evaluate');
+const suggestButton = document.getElementById('suggest-answer');
+const hideSuggestionButton = document.getElementById('hide-suggestion');
+const suggestionStatus = document.getElementById('suggestion-status');
+const suggestionResult = document.getElementById('suggestion-result');
+const suggestionText = document.getElementById('suggestion-text');
+const suggestionPoints = document.getElementById('suggestion-points');
+const suggestionCaution = document.getElementById('suggestion-caution');
+let suggestionForQuestion = null;
+let suggestionData = null;
 const previewButton = document.getElementById('preview');
 const clearButton = document.getElementById('clear');
 const loginButton = document.getElementById('login');
@@ -42,6 +51,7 @@ const example = {
 function updateButtons() {
   const micActive = micState !== 'idle';
   evaluateButton.disabled = !signedIn || busy || micActive;
+  suggestButton.disabled = !signedIn || busy || micActive || !question.value.trim();
   loginButton.disabled = busy;
   logoutButton.disabled = busy || micActive;
   previewButton.disabled = busy || micActive;
@@ -58,13 +68,28 @@ function setAuthState(authenticated) {
   authStatus.textContent = authenticated ? 'Signed in' : 'Not signed in';
   appStatus.textContent = authenticated ? 'Owner session · AI connected' : 'Owner access · Sign in required';
   updateButtons();
+  if (!authenticated) resetSuggestion();
 }
 function setBusy(value) { busy = value; updateButtons(); }
 function updateCounters() {
   document.getElementById('question-count').textContent = `${question.value.length.toLocaleString()} / 200`;
   document.getElementById('answer-count').textContent = `${answer.value.length.toLocaleString()} / 2,000`;
 }
-question.addEventListener('input', updateCounters);
+function resetSuggestion() {
+  suggestionForQuestion = null;
+  suggestionData = null;
+  suggestionResult.hidden = true;
+  hideSuggestionButton.hidden = true;
+  suggestButton.textContent = 'Show Suggested Answer';
+  suggestionStatus.textContent = signedIn ? 'Request a reference answer when you are ready.' : 'Sign in to request a reference answer.';
+  updateButtons();
+}
+function syncSuggestionToQuestion() {
+  if (suggestionForQuestion !== null && question.value.trim() !== suggestionForQuestion) resetSuggestion();
+  updateCounters();
+  updateButtons();
+}
+question.addEventListener('input', syncSuggestionToQuestion);
 answer.addEventListener('input', updateCounters);
 updateCounters();
 
@@ -332,8 +357,65 @@ evaluateButton.addEventListener('click', async () => {
     notice.textContent = `Evaluation failed: ${error.message}`;
   } finally { setBusy(false); }
 });
+suggestButton.addEventListener('click', async () => {
+  const currentQuestion = question.value.trim();
+  if (!signedIn || busy || micState !== 'idle' || !currentQuestion) return;
+  if (suggestionData && suggestionForQuestion === currentQuestion) {
+    suggestionResult.hidden = false;
+    hideSuggestionButton.hidden = false;
+    suggestButton.textContent = 'Show Suggested Answer';
+    suggestionStatus.textContent = 'Showing previously generated answer. No new AI request made.';
+    return;
+  }
+  setBusy(true);
+  suggestionStatus.textContent = 'Gemini is preparing a reference answer...';
+  try {
+    const response = await fetch('/api/suggest-answer', {
+      method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({question:currentQuestion})
+    });
+    const result = await readResponse(response);
+    const data = result.suggestion;
+    if (result.success !== true || !data || typeof data.suggestedAnswer !== 'string' ||
+        !Array.isArray(data.keyPoints)) throw new Error('The AI response was incomplete.');
+    // Do not display a stale response if the question changed while waiting.
+    if (question.value.trim() !== currentQuestion) {
+      suggestionStatus.textContent = 'Question changed; previous suggestion discarded.';
+      return;
+    }
+    suggestionForQuestion = currentQuestion;
+    suggestionData = data;
+    suggestionText.textContent = data.suggestedAnswer;
+    suggestionPoints.replaceChildren();
+    data.keyPoints.forEach(point => {
+      const li = document.createElement('li');
+      li.textContent = point;
+      suggestionPoints.appendChild(li);
+    });
+    suggestionCaution.textContent = data.caution ? `Check before using: ${data.caution}` : '';
+    suggestionCaution.hidden = !data.caution;
+    suggestionResult.hidden = false;
+    hideSuggestionButton.hidden = false;
+    const remaining = result.usage?.remaining;
+    suggestionStatus.textContent = 'Suggested answer ready.' +
+      (typeof remaining === 'number' ? ` Shared daily AI requests remaining: ${remaining}.` : '');
+  } catch (error) {
+    if (error.status === 401) {
+      setAuthState(false);
+      authNotice.textContent = 'Your session has expired. Please sign in again.';
+    }
+    suggestionStatus.textContent = `Suggested answer failed: ${error.message}`;
+  } finally { setBusy(false); }
+});
+hideSuggestionButton.addEventListener('click', () => {
+  suggestionResult.hidden = true;
+  hideSuggestionButton.hidden = true;
+  suggestionStatus.textContent = 'Answer hidden. Show it again without another AI request.';
+});
+
 clearButton.addEventListener('click', () => {
   question.value = ''; answer.value = '';
+  resetSuggestion();
   updateCounters(); resetReport(); resetTimer();
   setMicStatus(speechSupported ?
     'Microphone available. Click Start microphone to dictate your answer.' :
@@ -490,6 +572,7 @@ libraryLoad.addEventListener('click',()=>{
   const replacing = question.value.trim() !== '' || answer.value.trim() !== '';
   if (replacing && !window.confirm('Load this question? Your current practice question and answer will be cleared.')) return;
   question.value = selected.question;
+  resetSuggestion();
   answer.value = '';
   updateCounters(); resetReport(); resetTimer();
   notice.textContent = signedIn ? 'Question loaded. Practice your answer, then evaluate with AI.' : 'Question loaded. Sign in when you are ready for a Gemini evaluation.';

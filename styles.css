@@ -747,3 +747,13 @@ button:disabled:hover { background: #679dff; }
 
 #generator-questions { padding-left: 24px; line-height: 1.55; }
 #generator-questions li { margin: 10px 0; overflow-wrap: anywhere; }
+
+/* Optional on-demand interview reference answer */
+.suggestion-section { margin: 14px 0 22px; }
+.suggestion-result { margin-top: 12px; padding: 16px; border: 1px solid #7053ad; border-radius: 12px; background: rgba(18,22,42,.78); }
+.suggestion-result[hidden], #hide-suggestion[hidden], #suggestion-caution[hidden] { display: none; }
+.suggestion-result h3 { margin: 0 0 10px; color: #bcaaff; font-size: 17px; }
+.suggestion-result h4 { margin: 16px 0 8px; color: #b7d0ff; font-size: 14px; }
+.suggestion-result p, .suggestion-result li { line-height: 1.55; overflow-wrap: anywhere; }
+.suggestion-result li { margin-bottom: 6px; }
+.suggestion-disclaimer { font-size: 12px; color: #bcb9d2; }
