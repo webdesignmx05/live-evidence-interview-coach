@@ -647,6 +647,8 @@ const generatorStatus = document.getElementById('generator-status');
 let generatedPack = null;
 const analyzerStatus = document.getElementById('analyzer-status');
 const analyzerResult = document.getElementById('analyzer-result');
+const analyzerPrintActions = document.getElementById('analyzer-print-actions');
+const analyzerPrint = document.getElementById('analyzer-print');
 
 function updateAnalyzerButton() {
   if (!analyzerRun) return;
@@ -657,7 +659,7 @@ function updateAnalyzerCount() {
   analyzerCount.textContent = `${analyzerDescription.value.length.toLocaleString()} / 20,000`;
   updateAnalyzerButton();
 }
-function hideAnalyzerResult() { analyzerResult.hidden = true; }
+function hideAnalyzerResult() { analyzerResult.hidden = true; analyzerPrintActions.hidden = true; }
 function renderAnalyzerList(id, items) {
   const target = document.getElementById(id);
   target.replaceChildren();
@@ -698,7 +700,20 @@ function renderAnalyzerAssessment(data) {
     renderAnalyzerList('analyzer-essential-gaps', data.essentialGaps);
   }
   analyzerResult.hidden = false;
+  analyzerPrintActions.hidden = false;
 }
+// Printing reuses the existing assessment without requesting Gemini again.
+analyzerPrint.addEventListener('click', () => {
+  if (analyzerResult.hidden) return;
+  document.getElementById('print-report-company').textContent = `Company: ${analyzerCompany.value.trim() || 'Not provided'}`;
+  document.getElementById('print-report-role').textContent = `Position: ${analyzerRole.value.trim() || 'Not provided'}`;
+  document.getElementById('print-report-date').textContent = `Printed: ${new Intl.DateTimeFormat(undefined, {dateStyle:'long'}).format(new Date())}`;
+  const copy = analyzerResult.cloneNode(true);
+  copy.removeAttribute('id'); copy.removeAttribute('aria-label');
+  copy.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+  document.getElementById('print-report-content').replaceChildren(copy);
+  window.print();
+});
 for (const field of [analyzerCompany, analyzerRole, analyzerDescription]) {
   field.addEventListener('input', () => {
     updateAnalyzerCount();
