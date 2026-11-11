@@ -150,6 +150,26 @@ function renderScores(scores) {
     track.append(fill); item.append(heading, track); dimensions.append(item);
   }
 }
+let evaluatedQuestion = '';
+let evaluatedAnswer = '';
+function updateEvaluationPrintAvailability() {
+  document.getElementById('evaluation-print-actions').hidden = document.getElementById('report').hidden;
+}
+document.getElementById('evaluation-print').addEventListener('click', () => {
+  if (document.getElementById('report').hidden) return;
+  document.getElementById('evaluation-print-date').textContent = `Printed: ${new Intl.DateTimeFormat(undefined, {dateStyle:'long'}).format(new Date())}`;
+  document.getElementById('evaluation-print-mode').textContent = document.getElementById('result-mode').textContent;
+  document.getElementById('evaluation-print-question').textContent = evaluatedQuestion;
+  document.getElementById('evaluation-print-answer').textContent = evaluatedAnswer;
+  const copy = document.getElementById('report').cloneNode(true);
+  copy.removeAttribute('id');
+  copy.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+  document.getElementById('evaluation-print-content').replaceChildren(copy);
+  document.body.classList.add('printing-evaluation');
+  window.print();
+});
+window.addEventListener('afterprint', () => document.body.classList.remove('printing-evaluation'));
+
 function renderReport({mode, scoreLabel, total, category, scores, strengths, improvements, summary, disclaimer}) {
   document.getElementById('empty').hidden = true;
   document.getElementById('report').hidden = false;
@@ -162,11 +182,17 @@ function renderReport({mode, scoreLabel, total, category, scores, strengths, imp
   renderList('improvements', improvements);
   document.getElementById('summary').textContent = summary;
   document.getElementById('disclaimer').textContent = disclaimer;
+  evaluatedQuestion = question.value.trim();
+  evaluatedAnswer = answer.value.trim();
+  updateEvaluationPrintAvailability();
 }
 function resetReport() {
   document.getElementById('empty').hidden = false;
   document.getElementById('report').hidden = true;
   document.getElementById('result-mode').textContent = 'Awaiting evaluation';
+  evaluatedQuestion = '';
+  evaluatedAnswer = '';
+  updateEvaluationPrintAvailability();
 }
 async function readResponse(response) {
   const data = await response.json().catch(() => null);
