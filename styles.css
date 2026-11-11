@@ -826,3 +826,23 @@ button:disabled:hover { background: #679dff; }
   margin-top: -12px;
   margin-bottom: 10px;
 }
+
+/* Question Library: print only the complete selected collection. */
+#library-print-report { display:none; }
+@media print {
+  body.printing-library > #assessment-print-report,
+  body.printing-library > #evaluation-print-report { display:none !important; }
+  body.printing-library > #library-print-report {
+    display:block !important;
+    font:10.5pt/1.45 Arial,Helvetica,sans-serif;
+    color:#111 !important;
+    background:#fff !important;
+    overflow-wrap:anywhere;
+  }
+  #library-print-report h1 { font-size:21pt; margin:8px 0 12px; color:#111 !important; }
+  #library-print-report h2 { font-size:13pt; margin:16px 0 8px; color:#111 !important; break-after:avoid-page; page-break-after:avoid; }
+  #library-print-report p,#library-print-report li { color:#111 !important; line-height:1.45; }
+  #library-print-report ol { padding-left:28px; margin:5px 0 14px; }
+  #library-print-report li { margin:0 0 9px; padding-left:4px; break-inside:avoid-page; page-break-inside:avoid; }
+  #library-print-report .library-print-category { margin:12px 0 20px; }
+}

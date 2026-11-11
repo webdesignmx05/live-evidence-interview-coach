@@ -464,6 +464,7 @@ const libraryLoad = document.getElementById('library-load');
 const libraryImportFile = document.getElementById('library-import-file');
 const libraryImport = document.getElementById('library-import');
 const libraryExport = document.getElementById('library-export');
+const libraryPrint = document.getElementById('library-print');
 const LIBRARY_STORAGE_KEY = 'leic-question-packs-v1';
 const MAX_IMPORT_BYTES = 1024 * 1024;
 const MAX_PACK_QUESTIONS = 500;
@@ -548,6 +549,7 @@ function updateLibraryButtons() {
   libraryLoad.disabled = !canInteract || !selectedQuestion();
   libraryImport.disabled = !canInteract || !libraryImportFile.files?.length;
   libraryExport.disabled = !libraryReady || !currentPack();
+  libraryPrint.disabled = !libraryReady || !currentPack() || !currentPack().questions.length;
 }
 function refreshLibraryQuestion() {
   const list = filteredQuestions();
@@ -629,6 +631,42 @@ libraryImport.addEventListener('click',async()=>{
     updateLibraryButtons();
   } catch (error) { libraryMessage(`Import failed: ${error.message}`); }
 });
+// Print the complete selected collection, regardless of the practice category filter.
+// All report text is created as text nodes; imported packs are never interpreted as HTML.
+libraryPrint.addEventListener('click', () => {
+  const pack = currentPack();
+  if (!libraryReady || !pack || !pack.questions.length) return;
+  document.getElementById('library-print-title').textContent = pack.title;
+  const extra = [pack.company, pack.jobTitle].filter(Boolean);
+  document.getElementById('library-print-meta').textContent =
+    `${pack.questions.length} questions` + (extra.length ? ` · ${extra.join(' · ')}` : '');
+  document.getElementById('library-print-date').textContent =
+    `Printed: ${new Intl.DateTimeFormat(undefined, {dateStyle:'long'}).format(new Date())}`;
+  const content = document.getElementById('library-print-content');
+  content.replaceChildren();
+  const categories = [...new Set(pack.questions.map(q => q.category))];
+  let number = 0;
+  for (const category of categories) {
+    const section = document.createElement('section');
+    section.className = 'library-print-category';
+    const heading = document.createElement('h2');
+    heading.textContent = category;
+    const list = document.createElement('ol');
+    list.start = number + 1;
+    for (const item of pack.questions.filter(q => q.category === category)) {
+      const li = document.createElement('li');
+      li.textContent = item.question;
+      list.append(li);
+      number++;
+    }
+    section.append(heading, list);
+    content.append(section);
+  }
+  document.body.classList.add('printing-library');
+  window.print();
+});
+window.addEventListener('afterprint', () => document.body.classList.remove('printing-library'));
+
 libraryExport.addEventListener('click',()=>{
   const pack = currentPack(); if (!pack) return;
   const blob = new Blob([JSON.stringify(pack,null,2)],{type:'application/json'});
