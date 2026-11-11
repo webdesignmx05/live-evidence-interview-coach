@@ -255,6 +255,7 @@
           <div class="actions">
             <button id="suggest-answer" class="secondary" type="button" disabled>Show Suggested Answer</button>
             <button id="hide-suggestion" class="secondary" type="button" hidden>Hide Suggested Answer</button>
+            <button id="suggestion-print" class="secondary" type="button" hidden>Print Suggested Answer</button>
           </div>
           <p id="suggestion-status" class="notice" role="status">Sign in to request a reference answer. One AI request per generation.</p>
           <div id="suggestion-result" class="suggestion-result" hidden>
@@ -397,6 +398,26 @@
     </header>
     <div id="library-print-content"></div>
   </article>
+<article id="suggestion-print-report" aria-label="Printable suggested answer">
+  <header class="print-report-header">
+    <p class="print-report-brand">LIVE EVIDENCE INTERVIEW COACH</p>
+    <h1>Suggested Interview Answer</h1>
+    <p id="suggestion-print-date"></p>
+  </header>
+  <section>
+    <h2>Interview question</h2>
+    <p id="suggestion-print-question"></p>
+    <h2>Suggested answer</h2>
+    <p id="suggestion-print-answer"></p>
+    <h2>Key talking points</h2>
+    <ul id="suggestion-print-points"></ul>
+    <section id="suggestion-print-caution-section" hidden>
+      <h2>Check before using</h2>
+      <p id="suggestion-print-caution"></p>
+    </section>
+    <p class="suggestion-print-disclaimer">Practice in your own words. Verify that every statement reflects your experience.</p>
+  </section>
+</article>
 <script src="script.js" defer></script>
 </body>
 </html>

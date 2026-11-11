@@ -7,6 +7,7 @@ const notice = document.getElementById('notice');
 const evaluateButton = document.getElementById('evaluate');
 const suggestButton = document.getElementById('suggest-answer');
 const hideSuggestionButton = document.getElementById('hide-suggestion');
+const suggestionPrintButton = document.getElementById('suggestion-print');
 const suggestionStatus = document.getElementById('suggestion-status');
 const suggestionResult = document.getElementById('suggestion-result');
 const suggestionText = document.getElementById('suggestion-text');
@@ -80,6 +81,7 @@ function resetSuggestion() {
   suggestionData = null;
   suggestionResult.hidden = true;
   hideSuggestionButton.hidden = true;
+  suggestionPrintButton.hidden = true;
   suggestButton.textContent = 'Show Suggested Answer';
   suggestionStatus.textContent = signedIn ? 'Request a reference answer when you are ready.' : 'Sign in to request a reference answer.';
   updateButtons();
@@ -389,6 +391,7 @@ suggestButton.addEventListener('click', async () => {
   if (suggestionData && suggestionForQuestion === currentQuestion) {
     suggestionResult.hidden = false;
     hideSuggestionButton.hidden = false;
+    suggestionPrintButton.hidden = false;
     suggestButton.textContent = 'Show Suggested Answer';
     suggestionStatus.textContent = 'Showing previously generated answer. No new AI request made.';
     return;
@@ -422,6 +425,7 @@ suggestButton.addEventListener('click', async () => {
     suggestionCaution.hidden = !data.caution;
     suggestionResult.hidden = false;
     hideSuggestionButton.hidden = false;
+    suggestionPrintButton.hidden = false;
     const remaining = result.usage?.remaining;
     suggestionStatus.textContent = 'Suggested answer ready.' +
       (typeof remaining === 'number' ? ` Shared daily AI requests remaining: ${remaining}.` : '');
@@ -433,9 +437,32 @@ suggestButton.addEventListener('click', async () => {
     suggestionStatus.textContent = `Suggested answer failed: ${error.message}`;
   } finally { setBusy(false); }
 });
+// Print the already generated reference answer; no extra AI request.
+suggestionPrintButton.addEventListener('click', () => {
+  if (!suggestionData || suggestionForQuestion !== question.value.trim() || suggestionResult.hidden) return;
+  document.getElementById('suggestion-print-date').textContent =
+    `Printed: ${new Intl.DateTimeFormat(undefined, {dateStyle:'long'}).format(new Date())}`;
+  document.getElementById('suggestion-print-question').textContent = suggestionForQuestion;
+  document.getElementById('suggestion-print-answer').textContent = suggestionData.suggestedAnswer;
+  const points = document.getElementById('suggestion-print-points');
+  points.replaceChildren();
+  for (const point of suggestionData.keyPoints) {
+    const li = document.createElement('li');
+    li.textContent = String(point);
+    points.append(li);
+  }
+  const cautionSection = document.getElementById('suggestion-print-caution-section');
+  cautionSection.hidden = !suggestionData.caution;
+  document.getElementById('suggestion-print-caution').textContent = suggestionData.caution || '';
+  document.body.classList.add('printing-suggestion');
+  window.print();
+});
+window.addEventListener('afterprint', () => document.body.classList.remove('printing-suggestion'));
+
 hideSuggestionButton.addEventListener('click', () => {
   suggestionResult.hidden = true;
   hideSuggestionButton.hidden = true;
+  suggestionPrintButton.hidden = true;
   suggestionStatus.textContent = 'Answer hidden. Show it again without another AI request.';
 });
 
