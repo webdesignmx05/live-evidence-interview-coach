@@ -872,3 +872,45 @@ button:disabled:hover { background: #679dff; }
     color:#444 !important; font-size:9pt;
   }
 }
+
+/* Complete practice session report; reuses the established evaluation layout. */
+#practice-print-report { display:none; }
+@media print {
+  body.printing-practice > #assessment-print-report,
+  body.printing-practice > #evaluation-print-report,
+  body.printing-practice > #library-print-report,
+  body.printing-practice > #suggestion-print-report { display:none !important; }
+  body.printing-practice > #practice-print-report {
+    display:block !important;
+    font:10.5pt/1.45 Arial,Helvetica,sans-serif;
+    color:#111 !important; background:#fff !important;
+    overflow-wrap:anywhere;
+  }
+  #practice-print-report h1 { color:#111 !important; font-size:21pt; margin:8px 0 12px; }
+  #practice-print-report h2 { color:#111 !important; font-size:12pt; margin:15px 0 6px; break-after:avoid-page; }
+  #practice-print-report h3 { color:#111 !important; font-size:11pt; margin:12px 0 5px; break-after:avoid-page; }
+  #practice-print-report p,#practice-print-report li,
+  #practice-print-report span,#practice-print-report strong,
+  #practice-print-report small { color:#111 !important; line-height:1.45; }
+  #practice-print-question,#practice-print-answer,#practice-print-suggestion,
+  #practice-print-caution { white-space:pre-wrap; overflow-wrap:anywhere; }
+  #practice-print-report .practice-print-answers { border-bottom:1px solid #aaa; padding-bottom:12px; margin-bottom:12px; }
+  #practice-print-report .score-top {
+    display:flex; justify-content:space-between; align-items:flex-start;
+    border-bottom:1px solid #aaa; padding-bottom:12px;
+  }
+  #practice-print-report .big-score { font-size:24pt; font-weight:bold; }
+  #practice-print-report .eyebrow { font-size:9pt; font-weight:bold; }
+  #practice-print-report .dimensions { display:block !important; margin:12px 0; }
+  #practice-print-report .dimension { margin:9px 0; break-inside:avoid-page; }
+  #practice-print-report .dim-head { display:flex; justify-content:space-between; }
+  #practice-print-report .track { display:none !important; }
+  #practice-print-report ul { padding-left:22px; }
+  #practice-print-report li { margin:5px 0; }
+  #practice-print-report .summary { border-top:1px solid #aaa; padding-top:12px; }
+  #practice-print-report .disclaimer,#practice-print-report .practice-print-footer {
+    color:#444 !important; font-size:9pt;
+  }
+  #practice-print-suggestion-section { border-top:1px solid #aaa; margin-top:18px; padding-top:8px; }
+  #practice-print-report .practice-print-footer { border-top:1px solid #aaa; padding-top:10px; margin-top:18px; }
+}

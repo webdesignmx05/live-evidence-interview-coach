@@ -342,7 +342,7 @@
           </p>
         </div>
 
-        <div class="actions" id="evaluation-print-actions" hidden><button id="evaluation-print" class="secondary" type="button">Print evaluation</button></div>
+        <div class="actions" id="evaluation-print-actions" hidden><button id="evaluation-print" class="secondary" type="button">Print evaluation</button> <button id="practice-print" class="secondary" type="button">Print practice session</button></div>
         <div id="report" hidden>
           <div class="score-top">
             <div>
@@ -417,6 +417,30 @@
     </section>
     <p class="suggestion-print-disclaimer">Practice in your own words. Verify that every statement reflects your experience.</p>
   </section>
+</article>
+<article id="practice-print-report" aria-label="Printable practice session">
+  <header class="print-report-header">
+    <p class="print-report-brand">LIVE EVIDENCE INTERVIEW COACH</p>
+    <h1>Interview Practice Session</h1>
+    <p id="practice-print-date"></p>
+    <p id="practice-print-mode"></p>
+  </header>
+  <section class="practice-print-answers">
+    <h2>Interview question</h2>
+    <p id="practice-print-question"></p>
+    <h2>Your submitted answer</h2>
+    <p id="practice-print-answer"></p>
+  </section>
+  <h2>Evaluation and feedback</h2>
+  <div id="practice-print-evaluation"></div>
+  <section id="practice-print-suggestion-section" hidden>
+    <h2>Suggested answer (optional reference)</h2>
+    <p id="practice-print-suggestion"></p>
+    <h3>Key talking points</h3>
+    <ul id="practice-print-points"></ul>
+    <p id="practice-print-caution"></p>
+  </section>
+  <p class="practice-print-footer">AI feedback and suggested answers are advisory. Verify accuracy against your experience.</p>
 </article>
 <script src="script.js" defer></script>
 </body>

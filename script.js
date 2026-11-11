@@ -172,6 +172,41 @@ document.getElementById('evaluation-print').addEventListener('click', () => {
 });
 window.addEventListener('afterprint', () => document.body.classList.remove('printing-evaluation'));
 
+// Print a complete snapshot of the last evaluated question and submitted answer.
+// Unlike Print Evaluation, this report can also include the matching reference answer.
+document.getElementById('practice-print').addEventListener('click', () => {
+  if (document.getElementById('report').hidden || !evaluatedQuestion) return;
+  document.getElementById('practice-print-date').textContent =
+    `Printed: ${new Intl.DateTimeFormat(undefined, {dateStyle:'long'}).format(new Date())}`;
+  document.getElementById('practice-print-mode').textContent =
+    document.getElementById('result-mode').textContent;
+  document.getElementById('practice-print-question').textContent = evaluatedQuestion;
+  document.getElementById('practice-print-answer').textContent = evaluatedAnswer || '(No answer submitted)';
+  const evaluation = document.getElementById('report').cloneNode(true);
+  evaluation.removeAttribute('id');
+  evaluation.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+  document.getElementById('practice-print-evaluation').replaceChildren(evaluation);
+  const matchingSuggestion = suggestionData && suggestionForQuestion === evaluatedQuestion;
+  const section = document.getElementById('practice-print-suggestion-section');
+  section.hidden = !matchingSuggestion;
+  if (matchingSuggestion) {
+    document.getElementById('practice-print-suggestion').textContent = suggestionData.suggestedAnswer || '';
+    const points = document.getElementById('practice-print-points');
+    points.replaceChildren();
+    for (const point of suggestionData.keyPoints || []) {
+      const li = document.createElement('li');
+      li.textContent = String(point);
+      points.append(li);
+    }
+    const caution = document.getElementById('practice-print-caution');
+    caution.textContent = suggestionData.caution || '';
+    caution.hidden = !suggestionData.caution;
+  }
+  document.body.classList.add('printing-practice');
+  window.print();
+});
+window.addEventListener('afterprint', () => document.body.classList.remove('printing-practice'));
+
 function renderReport({mode, scoreLabel, total, category, scores, strengths, improvements, summary, disclaimer}) {
   document.getElementById('empty').hidden = true;
   document.getElementById('report').hidden = false;
