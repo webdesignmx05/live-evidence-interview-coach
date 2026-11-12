@@ -914,3 +914,15 @@ button:disabled:hover { background: #679dff; }
   #practice-print-suggestion-section { border-top:1px solid #aaa; margin-top:18px; padding-top:8px; }
   #practice-print-report .practice-print-footer { border-top:1px solid #aaa; padding-top:10px; margin-top:18px; }
 }
+
+
+/* Public job posting URL import */
+.job-url-loader { margin: 16px 0; }
+.job-url-controls { display:flex; gap:10px; align-items:stretch; }
+.job-url-controls input { flex:1; min-width:0; }
+.job-url-controls button { white-space:nowrap; }
+.job-url-loader .field-note { margin:8px 0 0; line-height:1.5; }
+@media (max-width:540px) {
+  .job-url-controls { flex-direction:column; }
+  .job-url-controls button { width:100%; }
+}

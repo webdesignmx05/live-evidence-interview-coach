@@ -160,6 +160,14 @@
         <span class="pill">Owner-only AI assessment</span>
       </div>
       <p>Paste a job description to compare its requirements with your approved skills profile. Sign in to run Gemini analysis.</p>
+      <div class="job-url-loader">
+        <label for="job-posting-url">Job posting URL (optional)</label>
+        <div class="job-url-controls">
+          <input id="job-posting-url" type="url" maxlength="2048" placeholder="https://company.com/careers/..." autocomplete="off" spellcheck="false" />
+          <button id="job-url-load" type="button" class="secondary" disabled>Load job</button>
+        </div>
+        <p id="job-url-status" class="field-note" role="status">Public employer and ATS pages work best. Review imported details before analyzing; loading does not use Gemini.</p>
+      </div>
       <div class="analyzer-fields">
         <div>
           <label for="analyzer-company">Company (optional)</label>

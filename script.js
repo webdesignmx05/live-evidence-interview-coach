@@ -761,6 +761,52 @@ async function initializeLibrary() {
 }
 
 // Job Description Analyzer: owner-only Gemini job-fit assessment.
+const jobPostingUrl = document.getElementById('job-posting-url');
+const jobUrlLoad = document.getElementById('job-url-load');
+const jobUrlStatus = document.getElementById('job-url-status');
+let loadingJobUrl = false;
+function updateJobUrlButton() {
+  jobUrlLoad.disabled = !signedIn || loadingJobUrl || !jobPostingUrl.value.trim();
+}
+jobPostingUrl.addEventListener('input', updateJobUrlButton);
+jobUrlLoad.addEventListener('click', async () => {
+  if (!signedIn || loadingJobUrl) return;
+  const url = jobPostingUrl.value.trim();
+  if (!/^https:\/\/[^\s]+$/i.test(url)) {
+    jobUrlStatus.textContent = 'Enter a full https:// job posting URL.';
+    return;
+  }
+  if ([analyzerCompany, analyzerRole, analyzerDescription].some(field => field.value.trim()) &&
+      !window.confirm('Replace the current job details with information from this URL?')) return;
+  loadingJobUrl = true;
+  updateJobUrlButton();
+  jobUrlStatus.textContent = 'Loading the public job posting...';
+  try {
+    const response = await fetch('/api/load-job-url', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'same-origin',
+      body:JSON.stringify({url})
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
+    if (!data.description || data.description.length < 100) throw new Error('No usable job description found.');
+    analyzerCompany.value = (data.company || '').slice(0,120);
+    analyzerRole.value = (data.title || '').slice(0,120);
+    analyzerDescription.value = data.description.slice(0,20000);
+    updateAnalyzerCount();
+    hideAnalyzerResult();
+    generatorResult.hidden = true;
+    generatedPack = null;
+    jobUrlStatus.textContent = `Loaded ${data.source === 'structured' ? 'structured job details' : 'page text'} from ${new URL(data.url).hostname}. Review for missing requirements before analyzing.`;
+    analyzerStatus.textContent = 'Job description imported. Review the text, then choose Analyze job fit with AI.';
+  } catch (error) {
+    jobUrlStatus.textContent = `Could not load posting: ${error.message} Paste the job description manually or try the employer's career page.`;
+  } finally {
+    loadingJobUrl = false;
+    updateJobUrlButton();
+  }
+});
 const analyzerCompany = document.getElementById('analyzer-company');
 const analyzerRole = document.getElementById('analyzer-role');
 const analyzerDescription = document.getElementById('analyzer-description');
@@ -777,6 +823,7 @@ const analyzerPrintActions = document.getElementById('analyzer-print-actions');
 const analyzerPrint = document.getElementById('analyzer-print');
 
 function updateAnalyzerButton() {
+  updateJobUrlButton();
   if (!analyzerRun) return;
   analyzerRun.disabled = !signedIn || busy || !analyzerDescription.value.trim();
   generatorRun.disabled = analyzerRun.disabled;
