@@ -50,12 +50,34 @@ function decodeEntities(s) {
   })[m.toLowerCase()]||m);
 }
 function plainText(html) {
-  return decodeEntities(String(html||'')
-    .replace(/<\s*(?:script|style|nav|footer|header|svg|noscript)\b[^>]*>[\s\S]*?<\s*\/\s*(?:script|style|nav|footer|header|svg|noscript)\s*>/gi,' ')
-    .replace(/<\s*br\s*\/?>/gi,'\n').replace(/<\/\s*(?:p|li|h[1-6]|div|section|tr)\s*>/gi,'\n')
-    .replace(/<li\b[^>]*>/gi,'• ').replace(/<[^>]*>/g,' ')
-    .replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n[ \t]+/g,'\n')
-    .replace(/\n{3,}/g,'\n\n').trim());
+  // Preserve semantic breaks before removing HTML. Structured JobPosting
+  // descriptions often contain HTML encoded as a JSON string.
+  let text = String(html || '')
+    .replace(/<\s*(?:script|style|nav|footer|header|svg|noscript)\b[^>]*>[\s\S]*?<\s*\/\s*(?:script|style|nav|footer|header|svg|noscript)\s*>/gi, ' ')
+    .replace(/<!--[^]*?-->/g, ' ')
+    .replace(/<\s*br\b[^>]*\/?\s*>/gi, '\n')
+    .replace(/<\s*li\b[^>]*>/gi, '\n• ')
+    .replace(/<\s*\/\s*li\s*>/gi, '\n')
+    .replace(/<\s*h[1-6]\b[^>]*>/gi, '\n\n')
+    .replace(/<\s*\/\s*h[1-6]\s*>/gi, '\n')
+    .replace(/<\s*(?:p|section|article|blockquote)\b[^>]*>/gi, '\n\n')
+    .replace(/<\s*\/\s*(?:p|section|article|blockquote)\s*>/gi, '\n\n')
+    .replace(/<\s*\/\s*(?:div|ul|ol|table|tr)\s*>/gi, '\n')
+    .replace(/<\s*(?:td|th)\b[^>]*>/gi, '  ')
+    .replace(/<[^>]*>/g, ' ');
+  text = decodeEntities(text).replace(/\u00a0/g, ' ').replace(/\r/g, '');
+  // Some feeds HTML-encode the description twice.
+  if (/<\/?(?:p|div|ul|ol|li|br|h[1-6])\b/i.test(text)) {
+    text = text.replace(/<\s*br\b[^>]*\/?\s*>/gi, '\n')
+      .replace(/<\s*li\b[^>]*>/gi, '\n• ')
+      .replace(/<\s*\/\s*(?:li|p|div|ul|ol|h[1-6])\s*>/gi, '\n')
+      .replace(/<[^>]*>/g, ' ');
+  }
+  return text.split('\n')
+    .map(line => line.replace(/[ \t]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 function textValue(v) {
   if (typeof v==='string') return plainText(v);
