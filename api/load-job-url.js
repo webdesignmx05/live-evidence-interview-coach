@@ -97,7 +97,10 @@ async function download(url, redirects=0) {
   const ip=addresses[0];
   return await new Promise((resolve,reject)=>{
     const req=https.get(url,{
-      lookup:(_hostname,_options,callback)=>callback(null,ip,4),
+      lookup:(_hostname,options,callback)=>{
+        if (options?.all) callback(null,[{address:ip,family:4}]);
+        else callback(null,ip,4);
+      },
       timeout:8000,
       headers:{'User-Agent':'LiveEvidenceInterviewCoach/1.0 (job posting reader)','Accept':'text/html,application/xhtml+xml','Accept-Encoding':'identity'}
     },res=>{
