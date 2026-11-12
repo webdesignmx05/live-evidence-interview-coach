@@ -79,6 +79,36 @@ function plainText(html) {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+// Some job boards publish JSON-LD descriptions as a single plain-text paragraph.
+// In that case, there are no HTML tags to preserve: add readable paragraph breaks
+// without paraphrasing, removing requirements, or invoking AI.
+function formatDescription(value) {
+  const original = String(value || '');
+  const formatted = plainText(original);
+  if (!formatted || formatted.includes('\n')) return formatted;
+  if (formatted.length < 350) return formatted;
+
+  // Split only at likely sentence endings, not at decimal points or abbreviations.
+  const sentences = formatted.match(/[^.!?]+(?:[.!?]+(?=\s|$)|$)/g) || [formatted];
+  const sections = [];
+  let paragraph = [];
+  let count = 0;
+  const flush = () => {
+    if (paragraph.length) sections.push(paragraph.join(' ').trim());
+    paragraph = [];
+    count = 0;
+  };
+  for (const raw of sentences) {
+    const sentence = raw.trim();
+    if (!sentence) continue;
+    // Do not discard short sentences or alter their words.
+    if (count >= 280 || (count >= 155 && paragraph.length >= 2)) flush();
+    paragraph.push(sentence);
+    count += sentence.length + 1;
+  }
+  flush();
+  return sections.join('\n\n');
+}
 function textValue(v) {
   if (typeof v==='string') return plainText(v);
   if (v && typeof v==='object') return textValue(v.name||v.value||'');
@@ -100,14 +130,14 @@ function extract(html) {
     try {
       const job=findPosting(JSON.parse(script[1].trim()));
       if (!job) continue;
-      const description=textValue(job.description);
+      const description=formatDescription(job.description);
       if (description.length<100) continue;
       return {title:textValue(job.title),company:textValue(job.hiringOrganization),description:description.slice(0,20000),source:'structured'};
     } catch { /* Try another script. */ }
   }
   const main=/<main\b[^>]*>([\s\S]*?)<\/main>/i.exec(html)?.[1] ||
     /<article\b[^>]*>([\s\S]*?)<\/article>/i.exec(html)?.[1] || '';
-  const description=plainText(main);
+  const description=formatDescription(main);
   if (description.length<250) throw Error('No complete public job description was found on this page.');
   const title=decodeEntities(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]||'').trim();
   return {title:title.slice(0,120),company:'',description:description.slice(0,20000),source:'page'};
